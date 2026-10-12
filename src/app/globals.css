@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #5b4636;
+  --primary-dark: #3e2f24;
+  --accent: #c9a227;
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --text: #2b2118;
+  --muted: #8a7a6b;
+  --hero-overlay: rgba(43, 33, 24, 0.6);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-cairo), "Segoe UI", Tahoma, sans-serif;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+.btn-primary:active {
+  transform: scale(0.97);
+}
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+}
+.text-primary-c {
+  color: var(--primary);
+}
+.text-accent-c {
+  color: var(--accent);
+}
+.text-muted-c {
+  color: var(--muted);
+}
+.bg-surface {
+  background: var(--surface);
+}
+.bg-primary-c {
+  background: var(--primary);
+}
+.border-primary-c {
+  border-color: var(--primary);
+}
+.ring-accent-c {
+  --tw-ring-color: var(--accent);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: 1rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+input, select, textarea {
+  background: var(--surface);
+  color: var(--text);
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+  70% { box-shadow: 0 0 0 16px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+.alert-pulse {
+  animation: pulse-ring 1.2s infinite;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 8px;
+}

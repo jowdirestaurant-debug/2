@@ -1,0 +1,19 @@
+import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { sql } from "drizzle-orm";
+import { ensureSeeded } from "@/lib/seed";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  try {
+    await db.execute(sql`SELECT 1`);
+    await ensureSeeded();
+    return NextResponse.json({ status: "ok" });
+  } catch (error) {
+    return NextResponse.json(
+      { status: "error", message: error instanceof Error ? error.message : "unknown" },
+      { status: 500 }
+    );
+  }
+}
