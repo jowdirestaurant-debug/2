@@ -22,7 +22,6 @@ export const dictionaries = {
     subtotal: "المجموع الفرعي",
     discount: "الخصم",
     deliveryFee: "رسوم التوصيل",
-    sharedDeliveryNote: "تم تقسيم رسوم التوصيل بينك وبين المطعم",
     total: "الإجمالي",
     orderType: "نوع الطلب",
     dineIn: "محلي",
