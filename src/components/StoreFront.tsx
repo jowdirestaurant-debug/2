@@ -1,3 +1,43 @@
+"use client";
+import { isRestaurantOpen } from "@/lib/openingHours";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { getDict, type Locale } from "@/lib/i18n";
+
+/* ---------- Types ---------- */
+type Category = { id: number; parentId: number | null; nameAr: string; nameEn: string; sortOrder: number; isActive: boolean };
+type Size = { id: number; itemId: number; nameAr: string; nameEn: string; price: string; discountPercent: string; stock: number | null; isAvailable: boolean; sortOrder: number };
+type Item = {
+  id: number; categoryId: number; nameAr: string; nameEn: string;
+  descriptionAr: string | null; descriptionEn: string | null;
+  basePrice: string; discountPercent: string; imageUrl: string | null;
+  isAvailable: boolean; sortOrder: number;
+};
+type Gov = { id: number; nameAr: string; nameEn: string };
+type Region = { id: number; governorateId: number; nameAr: string; nameEn: string };
+type Popup = { id: number; titleAr: string; titleEn: string; bodyAr: string | null; bodyEn: string | null; imageUrl: string | null };
+type CartLine = { itemId: number; sizeId: number | null; quantity: number };
+type Me = { id: number; fullName: string; email: string; phone: string; governorateId: number | null; regionId: number | null; addressDetails: string | null } | null;
+type MyOrder = {
+  id: number; orderNumber: string; status: string; orderType: string; total: string; createdAt: string;
+  items: { id: number; nameAr: string; nameEn: string; sizeNameAr: string | null; sizeNameEn: string | null; quantity: number; lineTotal: string }[];
+};
+
+type Props = {
+  locale: Locale;
+  settings: Record<string, string>;
+  content: Record<string, { ar: string; en: string }>;
+  categories: Category[];
+  items: (Item & { createdAt: string })[];
+  sizes: Size[];
+  governorates: Gov[];
+  regions: Region[];
+  popups: Popup[];
+};
+
+function price(n: number) {
+  return n.toFixed(3);
+}
+
 export default function StoreFront(props: Props) {
   const { locale, settings, content, categories, items, sizes, governorates, regions, popups } = props;
   const t = getDict(locale);
