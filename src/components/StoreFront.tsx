@@ -1,5 +1,5 @@
 "use client";
-
+import { isRestaurantOpen } from "@/lib/openingHours";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { getDict, type Locale } from "@/lib/i18n";
 
