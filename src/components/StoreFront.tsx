@@ -1,43 +1,3 @@
-"use client";
-import { isRestaurantOpen } from "@/lib/openingHours";
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { getDict, type Locale } from "@/lib/i18n";
-
-/* ---------- Types ---------- */
-type Category = { id: number; parentId: number | null; nameAr: string; nameEn: string; sortOrder: number; isActive: boolean };
-type Size = { id: number; itemId: number; nameAr: string; nameEn: string; price: string; discountPercent: string; stock: number | null; isAvailable: boolean; sortOrder: number };
-type Item = {
-  id: number; categoryId: number; nameAr: string; nameEn: string;
-  descriptionAr: string | null; descriptionEn: string | null;
-  basePrice: string; discountPercent: string; imageUrl: string | null;
-  isAvailable: boolean; sortOrder: number;
-};
-type Gov = { id: number; nameAr: string; nameEn: string };
-type Region = { id: number; governorateId: number; nameAr: string; nameEn: string };
-type Popup = { id: number; titleAr: string; titleEn: string; bodyAr: string | null; bodyEn: string | null; imageUrl: string | null };
-type CartLine = { itemId: number; sizeId: number | null; quantity: number };
-type Me = { id: number; fullName: string; email: string; phone: string; governorateId: number | null; regionId: number | null; addressDetails: string | null } | null;
-type MyOrder = {
-  id: number; orderNumber: string; status: string; orderType: string; total: string; createdAt: string;
-  items: { id: number; nameAr: string; nameEn: string; sizeNameAr: string | null; sizeNameEn: string | null; quantity: number; lineTotal: string }[];
-};
-
-type Props = {
-  locale: Locale;
-  settings: Record<string, string>;
-  content: Record<string, { ar: string; en: string }>;
-  categories: Category[];
-  items: (Item & { createdAt: string })[];
-  sizes: Size[];
-  governorates: Gov[];
-  regions: Region[];
-  popups: Popup[];
-};
-
-function price(n: number) {
-  return n.toFixed(3);
-}
-
 export default function StoreFront(props: Props) {
   const { locale, settings, content, categories, items, sizes, governorates, regions, popups } = props;
   const t = getDict(locale);
@@ -173,6 +133,10 @@ export default function StoreFront(props: Props) {
 
   const placeOrder = async () => {
     setErrorMsg("");
+    if (!isRestaurantOpen()) {
+      setErrorMsg(t.restaurantClosed);
+      return;
+    }
     if (!name.trim() || !phone.trim()) {
       setErrorMsg(t.requiredFields);
       return;
@@ -552,10 +516,7 @@ export default function StoreFront(props: Props) {
                   <div className="flex justify-between"><span className="text-muted-c">{t.subtotal}</span><span className="font-bold">{price(subtotal)} {currency}</span></div>
                   {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>{t.discount} ({promoResult?.code})</span><span className="font-bold">-{price(discountAmount)} {currency}</span></div>}
                   {checkoutOpen && orderType === "delivery" && (
-                    <>
-                      <div className="flex justify-between"><span className="text-muted-c">{t.deliveryFee}</span><span className="font-bold">{price(deliveryFeeCustomer)} {currency}</span></div>
-                      {shareEnabled && customerShare < 100 && <div className="text-xs text-green-600">✓ {t.sharedDeliveryNote} ({100 - customerShare}% / {customerShare}%)</div>}
-                    </>
+                    <div className="flex justify-between"><span className="text-muted-c">{t.deliveryFee}</span><span className="font-bold">{price(deliveryFeeCustomer)} {currency}</span></div>
                   )}
                   <div className="flex justify-between text-lg font-extrabold pt-1"><span>{t.total}</span><span className="text-accent-c">{price(checkoutOpen ? grandTotal : subtotal)} {currency}</span></div>
                 </div>
@@ -595,16 +556,6 @@ export default function StoreFront(props: Props) {
                       <span className="font-extrabold">{o.orderNumber}</span>
                       <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">{t.orderStatus[o.status] ?? o.status}</span>
                     </div>
-                    <div className="text-xs text-muted-c mt-1">{new Date(o.createdAt).toLocaleString(ar ? "ar-BH" : "en-GB")}</div>
-                    <div className="mt-2 text-sm space-y-0.5">
-                      {o.items.map((it) => (
-                        <div key={it.id} className="flex justify-between">
-                          <span>{it.quantity}× {ar ? it.nameAr : it.nameEn}{(ar ? it.sizeNameAr : it.sizeNameEn) ? ` (${ar ? it.sizeNameAr : it.sizeNameEn})` : ""}</span>
-                          <span className="text-muted-c">{it.lineTotal}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-2 font-extrabold text-end text-accent-c">{o.total} {currency}</div>
                   </div>
                 ))}
               </div>
@@ -612,25 +563,6 @@ export default function StoreFront(props: Props) {
           </div>
         </div>
       )}
-
-      {/* ---------- Popups ---------- */}
-      {popups.filter((p) => !dismissedPopups.includes(p.id)).slice(0, 1).map((p) => (
-        <div key={p.id} className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-          <div className="card w-full max-w-md overflow-hidden">
-            {p.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.imageUrl} alt="" className="w-full h-48 object-cover" />
-            )}
-            <div className="p-6 text-center">
-              <h3 className="text-2xl font-extrabold text-primary-c">{ar ? p.titleAr : p.titleEn}</h3>
-              <p className="mt-3 text-muted-c whitespace-pre-line">{ar ? p.bodyAr : p.bodyEn}</p>
-              <button onClick={() => setDismissedPopups((d) => [...d, p.id])} className="btn-accent mt-6 px-10 py-3 rounded-full font-extrabold">
-                {t.close}
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
