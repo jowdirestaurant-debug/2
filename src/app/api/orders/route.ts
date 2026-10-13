@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order safely in background (Non-blocking) with direct API key
+    // Broadcast delivery order safely in background (Non-blocking) with detailed logging
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -254,11 +254,11 @@ export async function POST(req: NextRequest) {
                 }),
               });
 
+              const responseText = await dispatchRes.text();
               if (!dispatchRes.ok) {
-                const failText = await dispatchRes.text();
-                console.error("[Parcel Order Dispatch Failed]:", dispatchRes.status, failText);
+                console.error("[Parcel Order Dispatch Failed]:", dispatchRes.status, responseText);
               } else {
-                console.log("[Parcel Order Dispatched Successfully]:", order.orderNumber);
+                console.log("[Parcel Order Dispatched Successfully]:", order.orderNumber, responseText);
               }
             } catch (e: any) {
               console.error("[dispatch exception]:", e?.message || e);
