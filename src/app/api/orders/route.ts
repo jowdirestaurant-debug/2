@@ -231,7 +231,6 @@ export async function POST(req: NextRequest) {
           try {
             let accessToken = "";
 
-            // إذا كان المفتاح يحتوي على ClientID و SecretKey مفصولين بـ :
             if (rawKey.includes(":")) {
               const [clientId, clientSecret] = rawKey.split(":");
               const credentials = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
@@ -255,7 +254,6 @@ export async function POST(req: NextRequest) {
                 console.error("[Parcel Auth Error]:", tokenRes.status, tokenErr);
               }
             } else {
-              // إذا كان مدخلاً كـ Secret Key مباشر أو رمز Bearer
               accessToken = rawKey;
             }
 
@@ -341,7 +339,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async "PATCH"(req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   try {
     const { code, subtotal } = await req.json();
     const [promo] = await db
