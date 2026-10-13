@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order safely in background (Non-blocking) with detailed logging
+    // Broadcast delivery order synchronously to ensure execution and logging
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -233,37 +233,36 @@ export async function POST(req: NextRequest) {
           const apiUrl = agg.apiUrl; 
           const apiKey = agg.apiKey.trim();
           
-          (async () => {
-            try {
-              const dispatchRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json", 
-                  "Authorization": `Bearer ${apiKey}` 
-                },
-                body: JSON.stringify({
-                  externalOrderId: order.orderNumber,
-                  customer: { name: order.customerName, phone: order.customerPhone },
-                  address: { formattedAddress: order.addressDetails },
-                  payment: { total: order.total },
-                  items: lineRecords.map(item => ({
-                    name: item.nameAr,
-                    quantity: item.quantity,
-                    price: Number(item.unitPrice)
-                  })),
-                }),
-              });
+          try {
+            console.log("[Parcel Dispatch] Attempting to send order:", order.orderNumber, "to URL:", apiUrl);
+            const dispatchRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${apiKey}` 
+              },
+              body: JSON.stringify({
+                externalOrderId: order.orderNumber,
+                customer: { name: order.customerName, phone: order.customerPhone },
+                address: { formattedAddress: order.addressDetails },
+                payment: { total: order.total },
+                items: lineRecords.map(item => ({
+                  name: item.nameAr,
+                  quantity: item.quantity,
+                  price: Number(item.unitPrice)
+                })),
+              }),
+            });
 
-              const responseText = await dispatchRes.text();
-              if (!dispatchRes.ok) {
-                console.error("[Parcel Order Dispatch Failed]:", dispatchRes.status, responseText);
-              } else {
-                console.log("[Parcel Order Dispatched Successfully]:", order.orderNumber, responseText);
-              }
-            } catch (e: any) {
-              console.error("[dispatch exception]:", e?.message || e);
+            const responseText = await dispatchRes.text();
+            if (!dispatchRes.ok) {
+              console.error("[Parcel Order Dispatch Failed]:", dispatchRes.status, responseText);
+            } else {
+              console.log("[Parcel Order Dispatched Successfully]:", order.orderNumber, responseText);
             }
-          })();
+          } catch (e: any) {
+            console.error("[dispatch exception]:", e?.message || e);
+          }
         }
       }
     }
