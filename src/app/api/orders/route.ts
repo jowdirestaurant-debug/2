@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order safely in background (Non-blocking)
+    // Broadcast delivery order safely in background (Non-blocking) with error logging
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -233,22 +233,30 @@ export async function POST(req: NextRequest) {
           (async () => {
             try {
               let token = agg.apiKey ?? "";
+              let authHeader = `Bearer ${token}`;
+
               if (agg.apiKey && agg.apiKey.includes(":")) {
                 const [clientId, clientSecret] = agg.apiKey.split(":");
-                const tokenRes = await fetch(`${agg.apiUrl}/oauth2/token`, {
+                const tokenRes = await fetch(`${agg.apiUrl.replace(/\/+$/, "")}/oauth2/token`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ clientId, clientSecret }),
                 });
+
                 if (tokenRes.ok) {
                   const tokenData = await tokenRes.json();
-                  token = tokenData.accessToken || tokenData.token || token;
+                  token = tokenData.accessToken || tokenData.token || tokenData.access_token || token;
+                  authHeader = `Bearer ${token}`;
+                } else {
+                  const errText = await tokenRes.text();
+                  console.error("[Parcel Auth Error]:", tokenRes.status, errText);
+                  return;
                 }
               }
 
-              await fetch(`${agg.apiUrl}/api/v4/orders`, {
+              const dispatchRes = await fetch(`${agg.apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json", Authorization: authHeader },
                 body: JSON.stringify({
                   externalOrderId: order.orderNumber,
                   customer: { name: order.customerName, phone: order.customerPhone },
@@ -261,8 +269,15 @@ export async function POST(req: NextRequest) {
                   })),
                 }),
               });
+
+              if (!dispatchRes.ok) {
+                const failText = await dispatchRes.text();
+                console.error("[Parcel Order Dispatch Failed]:", dispatchRes.status, failText);
+              } else {
+                console.log("[Parcel Order Dispatched Successfully]:", order.orderNumber);
+              }
             } catch (e: any) {
-              console.warn("[dispatch] broadcast failed for", agg.name, e?.message);
+              console.error("[dispatch exception]:", e?.message || e);
             }
           })();
         }
