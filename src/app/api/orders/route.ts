@@ -226,22 +226,47 @@ export async function POST(req: NextRequest) {
         .select()
         .from(deliveryAggregators)
         .where(eq(deliveryAggregators.isActive, true));
+      
       for (const agg of aggregators) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           // Fire-and-forget broadcast to aggregator API
-          fetch(agg.apiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${agg.apiKey}` },
-            body: JSON.stringify({
-              event: "new_delivery_order",
-              orderNumber: order.orderNumber,
-              customer: { name: order.customerName, phone: order.customerPhone },
-              address: order.addressDetails,
-              total: order.total,
-              acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/api/delivery/accept`,
-            }),
-          }).catch((e) => console.warn("[dispatch] broadcast failed for", agg.name, e?.message));
+          (async () => {
+            try {
+              let token = agg.apiKey;
+              // إذا كان المفتاح يحتوي على ClientID و SecretKey مفصولين بـ :
+              if (agg.apiKey.includes(":")) {
+                const [clientId, clientSecret] = agg.apiKey.split(":");
+                const tokenRes = await fetch(`${agg.apiUrl}/oauth2/token`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ clientId, clientSecret }),
+                });
+                if (tokenRes.ok) {
+                  const tokenData = await tokenRes.json();
+                  token = tokenData.accessToken || tokenData.token || token;
+                }
+              }
+
+              await fetch(`${agg.apiUrl}/api/v4/orders`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                  externalOrderId: order.orderNumber,
+                  customer: { name: order.customerName, phone: order.customerPhone },
+                  address: { formattedAddress: order.addressDetails },
+                  payment: { total: order.total },
+                  items: lineRecords.map(item => ({
+                    name: item.nameAr,
+                    quantity: item.quantity,
+                    price: Number(item.unitPrice)
+                  })),
+                }),
+              });
+            } catch (e: any) {
+              console.warn("[dispatch] broadcast failed for", agg.name, e?.message);
+            }
+          })();
         }
       }
     }
@@ -274,7 +299,6 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  // Promo validation endpoint (POST /api/orders with method override kept simple via PATCH)
   try {
     const { code, subtotal } = await req.json();
     const [promo] = await db
