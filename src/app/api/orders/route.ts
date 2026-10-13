@@ -230,6 +230,7 @@ export async function POST(req: NextRequest) {
       for (const agg of aggregators) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
+          const apiUrl = agg.apiUrl; // تخزين المتغير لضمان عدم كونه null
           (async () => {
             try {
               let token = agg.apiKey ?? "";
@@ -237,7 +238,7 @@ export async function POST(req: NextRequest) {
 
               if (agg.apiKey && agg.apiKey.includes(":")) {
                 const [clientId, clientSecret] = agg.apiKey.split(":");
-                const tokenRes = await fetch(`${agg.apiUrl.replace(/\/+$/, "")}/oauth2/token`, {
+                const tokenRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/oauth2/token`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ clientId, clientSecret }),
@@ -254,7 +255,7 @@ export async function POST(req: NextRequest) {
                 }
               }
 
-              const dispatchRes = await fetch(`${agg.apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
+              const dispatchRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: authHeader },
                 body: JSON.stringify({
