@@ -233,9 +233,9 @@ export async function POST(req: NextRequest) {
           // Fire-and-forget broadcast to aggregator API
           (async () => {
             try {
-              let token = agg.apiKey;
+              let token = agg.apiKey ?? "";
               // إذا كان المفتاح يحتوي على ClientID و SecretKey مفصولين بـ :
-              if (agg.apiKey.includes(":")) {
+              if (agg.apiKey && agg.apiKey.includes(":")) {
                 const [clientId, clientSecret] = agg.apiKey.split(":");
                 const tokenRes = await fetch(`${agg.apiUrl}/oauth2/token`, {
                   method: "POST",
