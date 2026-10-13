@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order synchronously with robust auth handling
+    // Broadcast delivery order using direct Bearer token auth
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -231,43 +231,15 @@ export async function POST(req: NextRequest) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           const apiUrl = agg.apiUrl.replace(/\/+$/, ""); 
+          const apiKey = agg.apiKey.trim();
           
           try {
-            let authHeader = `Bearer ${agg.apiKey.trim()}`;
-
-            if (agg.apiKey.includes(":")) {
-              const [clientId, clientSecret] = agg.apiKey.split(":");
-              const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-              
-              console.log("[Parcel Auth] Attempting token exchange with clientId:", clientId);
-              const tokenRes = await fetch(`${apiUrl}/oauth2/token`, {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json",
-                  "Authorization": `Basic ${credentials}`
-                },
-                body: JSON.stringify({ grant_type: "client_credentials" }),
-              });
-
-              if (tokenRes.ok) {
-                const tokenData = await tokenRes.json();
-                console.log("[Parcel Auth] Token Response Data:", JSON.stringify(tokenData));
-                const accessToken = tokenData.accessToken || tokenData.token || tokenData.access_token;
-                if (accessToken) {
-                  authHeader = `Bearer ${accessToken}`;
-                }
-              } else {
-                const tokenErr = await tokenRes.text();
-                console.error("[Parcel Auth Error Status]:", tokenRes.status, tokenErr);
-              }
-            }
-
-            console.log("[Parcel Dispatch] Using Auth Header prefix:", authHeader.substring(0, 15) + "...");
-            const dispatchRes = await fetch(`${apiUrl}/api/v4/tasks`, {
+            console.log("[Parcel Dispatch] Sending order with direct Bearer token to:", `${apiUrl}/api/v4/orders`);
+            const dispatchRes = await fetch(`${apiUrl}/api/v4/orders`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json", 
-                "Authorization": authHeader 
+                "Authorization": `Bearer ${apiKey}` 
               },
               body: JSON.stringify({
                 externalOrderId: order.orderNumber,
@@ -341,6 +313,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    .catch(() => {})
     const { code, subtotal } = await req.json();
     const [promo] = await db
       .select()
