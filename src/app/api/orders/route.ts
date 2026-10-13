@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
       for (const agg of aggregators) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
-          const apiUrl = agg.apiUrl; // تخزين المتغير لضمان عدم كونه null
+          const apiUrl = agg.apiUrl; 
           (async () => {
             try {
               let token = agg.apiKey ?? "";
@@ -238,10 +238,15 @@ export async function POST(req: NextRequest) {
 
               if (agg.apiKey && agg.apiKey.includes(":")) {
                 const [clientId, clientSecret] = agg.apiKey.split(":");
+                const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+                
                 const tokenRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/oauth2/token`, {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ clientId, clientSecret }),
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Basic ${credentials}`
+                  },
+                  body: JSON.stringify({ grant_type: "client_credentials" }),
                 });
 
                 if (tokenRes.ok) {
