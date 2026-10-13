@@ -280,7 +280,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const orderNumber = searchParams.get("orderNumber");
+
+  if (orderNumber) {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.orderNumber, orderNumber))
+      .limit(1);
+
+    if (!order) {
+      return NextResponse.json({ error: "order_not_found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, status: order.status, orderNumber: order.orderNumber });
+  }
+
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ orders: [] });
   const rows = await db
