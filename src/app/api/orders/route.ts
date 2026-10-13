@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order safely without breaking order creation
+    // Official Parcel Integration Flow (OAuth2 Token Exchange using Client ID & Secret Key)
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -226,15 +226,50 @@ export async function POST(req: NextRequest) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           const apiUrl = agg.apiUrl.replace(/\/+$/, ""); 
-          const apiKey = agg.apiKey.trim();
+          const rawKey = agg.apiKey.trim();
           
           try {
-            console.log("[Parcel Dispatch] Attempting dispatch for order:", order.orderNumber);
+            let accessToken = "";
+
+            // إذا كان المفتاح يحتوي على ClientID و SecretKey مفصولين بـ :
+            if (rawKey.includes(":")) {
+              const [clientId, clientSecret] = rawKey.split(":");
+              const credentials = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
+              
+              console.log("[Parcel Auth] Requesting access token from /oauth2/token...");
+              const tokenRes = await fetch(`${apiUrl}/oauth2/token`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Basic ${credentials}`
+                },
+                body: JSON.stringify({ grant_type: "client_credentials" }),
+              });
+
+              if (tokenRes.ok) {
+                const tokenData = await tokenRes.json();
+                console.log("[Parcel Auth] Token acquired successfully.");
+                accessToken = tokenData.access_token || tokenData.token || tokenData.accessToken;
+              } else {
+                const tokenErr = await tokenRes.text();
+                console.error("[Parcel Auth Error]:", tokenRes.status, tokenErr);
+              }
+            } else {
+              // إذا كان مدخلاً كـ Secret Key مباشر أو رمز Bearer
+              accessToken = rawKey;
+            }
+
+            if (!accessToken) {
+              console.error("[Parcel Dispatch Aborted]: Could not obtain a valid access token.");
+              continue;
+            }
+
+            console.log("[Parcel Dispatch] Sending order to:", `${apiUrl}/api/v4/orders`);
             const dispatchRes = await fetch(`${apiUrl}/api/v4/orders`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json", 
-                "Authorization": apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}` 
+                "Authorization": `Bearer ${accessToken}` 
               },
               body: JSON.stringify({
                 externalOrderId: order.orderNumber,
@@ -250,7 +285,11 @@ export async function POST(req: NextRequest) {
             });
 
             const responseText = await dispatchRes.text();
-            console.log("[Parcel Raw Response]:", dispatchRes.status, responseText);
+            if (!dispatchRes.ok) {
+              console.error("[Parcel Order Dispatch Failed]:", dispatchRes.status, responseText);
+            } else {
+              console.log("[Parcel Order Dispatched Successfully]:", order.orderNumber, responseText);
+            }
           } catch (e: any) {
             console.error("[dispatch exception]:", e?.message || e);
           }
@@ -302,7 +341,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function PATCH(req: NextRequest) {
+export async "PATCH"(req: NextRequest) {
   try {
     const { code, subtotal } = await req.json();
     const [promo] = await db
