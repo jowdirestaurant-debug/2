@@ -313,7 +313,6 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    .catch(() => {})
     const { code, subtotal } = await req.json();
     const [promo] = await db
       .select()
