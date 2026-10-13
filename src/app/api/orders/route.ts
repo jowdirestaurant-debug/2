@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order safely in background (Non-blocking) with error logging
+    // Broadcast delivery order safely in background (Non-blocking) with direct API key
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -231,38 +231,16 @@ export async function POST(req: NextRequest) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           const apiUrl = agg.apiUrl; 
+          const apiKey = agg.apiKey.trim();
+          
           (async () => {
             try {
-              let token = agg.apiKey ?? "";
-              let authHeader = `Bearer ${token}`;
-
-              if (agg.apiKey && agg.apiKey.includes(":")) {
-                const [clientId, clientSecret] = agg.apiKey.split(":");
-                const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-                
-                const tokenRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/oauth2/token`, {
-                  method: "POST",
-                  headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Basic ${credentials}`
-                  },
-                  body: JSON.stringify({ grant_type: "client_credentials" }),
-                });
-
-                if (tokenRes.ok) {
-                  const tokenData = await tokenRes.json();
-                  token = tokenData.accessToken || tokenData.token || tokenData.access_token || token;
-                  authHeader = `Bearer ${token}`;
-                } else {
-                  const errText = await tokenRes.text();
-                  console.error("[Parcel Auth Error]:", tokenRes.status, errText);
-                  return;
-                }
-              }
-
               const dispatchRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: authHeader },
+                headers: { 
+                  "Content-Type": "application/json", 
+                  "Authorization": `Bearer ${apiKey}` 
+                },
                 body: JSON.stringify({
                   externalOrderId: order.orderNumber,
                   customer: { name: order.customerName, phone: order.customerPhone },
