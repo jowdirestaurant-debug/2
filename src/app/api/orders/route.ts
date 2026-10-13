@@ -235,7 +235,6 @@ export async function POST(req: NextRequest) {
           try {
             let authHeader = `Bearer ${agg.apiKey.trim()}`;
 
-            // إذا كان المفتاح يحتوي على ClientID و SecretKey مفصولين بـ :
             if (agg.apiKey.includes(":")) {
               const [clientId, clientSecret] = agg.apiKey.split(":");
               const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
@@ -263,8 +262,8 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            console.log("[Parcel Dispatch] Sending order:", order.orderNumber);
-            const dispatchRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/v4/orders`, {
+            console.log("[Parcel Dispatch] Sending order to tasks endpoint:", order.orderNumber);
+            const dispatchRes = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/v4/tasks`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json", 
