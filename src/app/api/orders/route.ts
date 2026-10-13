@@ -66,7 +66,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "banned" }, { status: 403 });
     }
 
-    // Ban checks: email / phone / address
     const banRows = await db.select().from(bans);
     const emailLc = (customerEmail ?? user?.email ?? "").toLowerCase();
     const phoneNorm = customerPhone.replace(/\s+/g, "");
@@ -85,7 +84,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Load items/sizes and validate availability + compute subtotal server-side
     const itemIds = [...new Set(lines.map((l) => l.itemId))];
     const dbItems = await db.select().from(menuItems).where(inArray(menuItems.id, itemIds));
     const sizeIds = lines.map((l) => l.sizeId).filter((s): s is number => !!s);
@@ -134,7 +132,6 @@ export async function POST(req: NextRequest) {
     }
     subtotal = round3(subtotal);
 
-    // Promo code
     let discountAmount = 0;
     let appliedPromo: string | null = null;
     if (promoCode) {
@@ -164,7 +161,6 @@ export async function POST(req: NextRequest) {
         .where(eq(promoCodes.id, promo.id));
     }
 
-    // Delivery fee + 50/50 share
     const settings = await getSettings();
     let feeTotal = 0;
     let feeCustomer = 0;
@@ -210,7 +206,6 @@ export async function POST(req: NextRequest) {
 
     await db.insert(orderItems).values(lineRecords.map((r) => ({ ...r, orderId: order.id })));
 
-    // Decrement stock
     for (const line of lines) {
       if (line.sizeId) {
         await db
@@ -220,7 +215,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order using official OAuth2 token flow from Parcel docs
+    // Broadcast delivery order directly using the API key as Bearer token
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -231,42 +226,15 @@ export async function POST(req: NextRequest) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           const apiUrl = agg.apiUrl.replace(/\/+$/, ""); 
-          const rawKey = agg.apiKey.trim();
+          const apiKey = agg.apiKey.trim();
           
           try {
-            let accessToken = rawKey;
-
-            // إذا كان المفتاح يحتوي على فاصلة قطعية (Client ID : Client Secret) نقوم بطلب التوكن بالشكل الرسمي
-            if (rawKey.includes(":")) {
-              const [clientId, clientSecret] = rawKey.split(":");
-              const credentials = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
-              
-              console.log("[Parcel Auth] Requesting access token from /oauth2/token...");
-              const tokenRes = await fetch(`${apiUrl}/oauth2/token`, {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json",
-                  "Authorization": `Basic ${credentials}`
-                },
-                body: JSON.stringify({ grant_type: "client_credentials" }),
-              });
-
-              if (tokenRes.ok) {
-                const tokenData = await tokenRes.json();
-                console.log("[Parcel Auth] Token Response Received successfully.");
-                accessToken = tokenData.access_token || tokenData.token || tokenData.accessToken;
-              } else {
-                const tokenErr = await tokenRes.text();
-                console.error("[Parcel Auth Error]:", tokenRes.status, tokenErr);
-              }
-            }
-
-            console.log("[Parcel Dispatch] Sending order to:", `${apiUrl}/api/v4/orders`);
+            console.log("[Parcel Dispatch] Sending order directly to:", `${apiUrl}/api/v4/orders`);
             const dispatchRes = await fetch(`${apiUrl}/api/v4/orders`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json", 
-                "Authorization": `Bearer ${accessToken}` 
+                "Authorization": `Bearer ${apiKey}` 
               },
               body: JSON.stringify({
                 externalOrderId: order.orderNumber,
