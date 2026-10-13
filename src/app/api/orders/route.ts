@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order to all active aggregators (first-accept locks)
+    // Broadcast delivery order safely in background (Non-blocking)
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -230,11 +230,9 @@ export async function POST(req: NextRequest) {
       for (const agg of aggregators) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
-          // Fire-and-forget broadcast to aggregator API
           (async () => {
             try {
               let token = agg.apiKey ?? "";
-              // إذا كان المفتاح يحتوي على ClientID و SecretKey مفصولين بـ :
               if (agg.apiKey && agg.apiKey.includes(":")) {
                 const [clientId, clientSecret] = agg.apiKey.split(":");
                 const tokenRes = await fetch(`${agg.apiUrl}/oauth2/token`, {
