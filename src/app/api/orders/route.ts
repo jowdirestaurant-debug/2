@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order directly using the API key as Bearer token
+    // Official Parcel OAuth2 Flow & Dispatch Implementation
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -226,15 +226,48 @@ export async function POST(req: NextRequest) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           const apiUrl = agg.apiUrl.replace(/\/+$/, ""); 
-          const apiKey = agg.apiKey.trim();
+          const rawKey = agg.apiKey.trim();
           
           try {
-            console.log("[Parcel Dispatch] Sending order directly to:", `${apiUrl}/api/v4/orders`);
+            let accessToken = "";
+
+            if (rawKey.includes(":")) {
+              const [clientId, clientSecret] = rawKey.split(":");
+              const credentials = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
+              
+              console.log("[Parcel Auth] Requesting access token from /oauth2/token...");
+              const tokenRes = await fetch(`${apiUrl}/oauth2/token`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Basic ${credentials}`
+                },
+                body: JSON.stringify({ grant_type: "client_credentials" }),
+              });
+
+              if (tokenRes.ok) {
+                const tokenData = await tokenRes.json();
+                console.log("[Parcel Auth] Token acquired successfully.");
+                accessToken = tokenData.access_token || tokenData.token || tokenData.accessToken;
+              } else {
+                const tokenErr = await tokenRes.text();
+                console.error("[Parcel Auth Error]:", tokenRes.status, tokenErr);
+              }
+            } else {
+              accessToken = rawKey;
+            }
+
+            if (!accessToken) {
+              console.error("[Parcel Dispatch Aborted]: No valid access token available.");
+              continue;
+            }
+
+            console.log("[Parcel Dispatch] Sending order to:", `${apiUrl}/api/v4/orders`);
             const dispatchRes = await fetch(`${apiUrl}/api/v4/orders`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json", 
-                "Authorization": `Bearer ${apiKey}` 
+                "Authorization": `Bearer ${accessToken}` 
               },
               body: JSON.stringify({
                 externalOrderId: order.orderNumber,
