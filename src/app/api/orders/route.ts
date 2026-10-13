@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Broadcast delivery order using direct Bearer token auth
+    // Broadcast delivery order using official OAuth2 token flow from Parcel docs
     if (orderType === "delivery") {
       const aggregators = await db
         .select()
@@ -231,15 +231,42 @@ export async function POST(req: NextRequest) {
         await db.insert(orderDispatches).values({ orderId: order.id, aggregatorId: agg.id });
         if (agg.apiUrl && agg.apiKey) {
           const apiUrl = agg.apiUrl.replace(/\/+$/, ""); 
-          const apiKey = agg.apiKey.trim();
+          const rawKey = agg.apiKey.trim();
           
           try {
-            console.log("[Parcel Dispatch] Sending order with direct Bearer token to:", `${apiUrl}/api/v4/orders`);
+            let accessToken = rawKey;
+
+            // إذا كان المفتاح يحتوي على فاصلة قطعية (Client ID : Client Secret) نقوم بطلب التوكن بالشكل الرسمي
+            if (rawKey.includes(":")) {
+              const [clientId, clientSecret] = rawKey.split(":");
+              const credentials = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
+              
+              console.log("[Parcel Auth] Requesting access token from /oauth2/token...");
+              const tokenRes = await fetch(`${apiUrl}/oauth2/token`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Basic ${credentials}`
+                },
+                body: JSON.stringify({ grant_type: "client_credentials" }),
+              });
+
+              if (tokenRes.ok) {
+                const tokenData = await tokenRes.json();
+                console.log("[Parcel Auth] Token Response Received successfully.");
+                accessToken = tokenData.access_token || tokenData.token || tokenData.accessToken;
+              } else {
+                const tokenErr = await tokenRes.text();
+                console.error("[Parcel Auth Error]:", tokenRes.status, tokenErr);
+              }
+            }
+
+            console.log("[Parcel Dispatch] Sending order to:", `${apiUrl}/api/v4/orders`);
             const dispatchRes = await fetch(`${apiUrl}/api/v4/orders`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json", 
-                "Authorization": `Bearer ${apiKey}` 
+                "Authorization": `Bearer ${accessToken}` 
               },
               body: JSON.stringify({
                 externalOrderId: order.orderNumber,
