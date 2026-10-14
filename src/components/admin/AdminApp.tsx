@@ -45,6 +45,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
   const [alarmOn, setAlarmOn] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alarmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const periodicAlarmRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [govs, setGovs] = useState<Row[]>([]);
   const [regs, setRegs] = useState<Row[]>([]);
 
@@ -121,6 +122,23 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
       if (alarmTimerRef.current) clearInterval(alarmTimerRef.current);
     };
   }, [alarmOn, beep]);
+
+  // تنبيه دوري كل 5 دقائق في حال وجود طلبات غير مكتملة أو ملغاة
+  useEffect(() => {
+    if (!me) return;
+    periodicAlarmRef.current = setInterval(() => {
+      const hasPendingOrActive = orders.some(
+        (o) => o.status !== "completed" && o.status !== "cancelled"
+      );
+      if (hasPendingOrActive) {
+        beep();
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      if (periodicAlarmRef.current) clearInterval(periodicAlarmRef.current);
+    };
+  }, [me, orders, beep]);
 
   const loadOrders = useCallback(async () => {
     const res = await fetch("/api/admin/orders");
@@ -250,67 +268,75 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         {tab === "orders" && (
           <div className="space-y-3">
             {orders.length === 0 && <div className="card p-10 text-center text-muted-c">{lbl("لا توجد طلبات بعد", "No orders yet")}</div>}
-            {orders.map((o) => (
-              <div key={o.id} className={`card p-4 ${!o.acknowledged ? "ring-2 ring-red-400" : ""}`}>
-                <div className="flex flex-wrap items-center gap-3 justify-between">
-                  <div>
-                    <span className="font-extrabold text-primary-c">{o.orderNumber}</span>
-                    <span className="text-xs text-muted-c ms-2" dir="ltr">{new Date(o.createdAt).toLocaleString("en-GB")}</span>
-                    {!o.acknowledged && <span className="ms-2 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{lbl("جديد", "NEW")}</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
-                      {o.orderType === "dine_in" ? t.dineIn : o.orderType === "takeaway" ? t.takeaway : t.delivery}
-                    </span>
-                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
-                      {o.paymentMethod === "cash" ? t.cash : o.paymentMethod === "benefitpay" ? t.benefitpay : t.card}
-                    </span>
-                    <select value={o.status} onChange={(e) => updateOrder(o.id, { status: e.target.value })} className="border border-black/15 rounded-lg px-2 py-1 text-xs font-bold bg-white">
-                      {STATUSES.map((s) => <option key={s} value={s}>{t.orderStatus[s] ?? s}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid md:grid-cols-2 gap-3 mt-3 text-sm">
-                  <div>
-                    <div className="font-bold">{o.customerName} — <span dir="ltr">{o.customerPhone}</span></div>
-                    {o.customerEmail && <div className="text-xs text-muted-c" dir="ltr">{o.customerEmail}</div>}
-                    {o.orderType === "delivery" && (
-                      <div className="text-xs text-muted-c mt-1">
-                        📍 {(() => {
-                          const g = govs.find((x) => x.id === o.governorateId);
-                          const r = regs.find((x) => x.id === o.regionId);
-                          return `${g ? (ar ? g.nameAr : g.nameEn) : ""} ${r ? "— " + (ar ? r.nameAr : r.nameEn) : ""}`;
-                        })()} — {o.addressDetails}
-                        {o.dispatchStatus && (
-                          <span className={`ms-2 font-bold ${o.dispatchStatus === "locked" ? "text-green-600" : "text-amber-600"}`}>
-                            {o.dispatchStatus === "locked" ? lbl("تم قبول التوصيل", "Delivery accepted") : lbl("جاري البث لشركات التوصيل...", "Broadcasting to delivery apps...")}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {o.notes && <div className="text-xs mt-1">📝 {o.notes}</div>}
-                  </div>
-                  <div className="text-xs space-y-0.5">
-                    {(o.items ?? []).map((it: any) => (
-                      <div key={it.id} className="flex justify-between">
-                        <span>{it.quantity}× {ar ? it.nameAr : it.nameEn}{(ar ? it.sizeNameAr : it.sizeNameEn) ? ` (${ar ? it.sizeNameAr : it.sizeNameEn})` : ""}</span>
-                        <span className="text-muted-c">{it.lineTotal}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between border-t border-black/10 pt-1 mt-1">
-                      <span>{t.subtotal}: {o.subtotal}</span>
-                      {Number(o.discountAmount) > 0 && <span className="text-green-600">{t.discount}: -{o.discountAmount} {o.promoCode && `(${o.promoCode})`}</span>}
+            {orders.map((o) => {
+              const isLocked = (o.status === "completed" || o.status === "cancelled") && me.role !== "superadmin";
+              return (
+                <div key={o.id} className={`card p-4 ${!o.acknowledged ? "ring-2 ring-red-400" : ""}`}>
+                  <div className="flex flex-wrap items-center gap-3 justify-between">
+                    <div>
+                      <span className="font-extrabold text-primary-c">{o.orderNumber}</span>
+                      <span className="text-xs text-muted-c ms-2" dir="ltr">{new Date(o.createdAt).toLocaleString("en-GB")}</span>
+                      {!o.acknowledged && <span className="ms-2 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{lbl("جديد", "NEW")}</span>}
                     </div>
-                    {o.orderType === "delivery" && (
-                      <div className="text-muted-c">
-                        {t.deliveryFee}: {o.deliveryFeeTotal} ({lbl("العميل", "customer")}: {o.deliveryFeeCustomer} / {lbl("المطعم", "restaurant")}: {o.deliveryFeeRestaurant})
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
+                        {o.orderType === "dine_in" ? t.dineIn : o.orderType === "takeaway" ? t.takeaway : t.delivery}
+                      </span>
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
+                        {o.paymentMethod === "cash" ? t.cash : o.paymentMethod === "benefitpay" ? t.benefitpay : t.card}
+                      </span>
+                      <select 
+                        value={o.status} 
+                        disabled={isLocked}
+                        onChange={(e) => updateOrder(o.id, { status: e.target.value })} 
+                        className="border border-black/15 rounded-lg px-2 py-1 text-xs font-bold bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        {STATUSES.map((s) => <option key={s} value={s}>{t.orderStatus[s] ?? s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3 mt-3 text-sm">
+                    <div>
+                      <div className="font-bold">{o.customerName} — <span dir="ltr">{o.customerPhone}</span></div>
+                      {o.customerEmail && <div className="text-xs text-muted-c" dir="ltr">{o.customerEmail}</div>}
+                      {o.orderType === "delivery" && (
+                        <div className="text-xs text-muted-c mt-1">
+                          📍 {(() => {
+                            const g = govs.find((x) => x.id === o.governorateId);
+                            const r = regs.find((x) => x.id === o.regionId);
+                            return `${g ? (ar ? g.nameAr : g.nameEn) : ""} ${r ? "— " + (ar ? r.nameAr : r.nameEn) : ""}`;
+                          })()} — {o.addressDetails}
+                          {o.dispatchStatus && (
+                            <span className={`ms-2 font-bold ${o.dispatchStatus === "locked" ? "text-green-600" : "text-amber-600"}`}>
+                              {o.dispatchStatus === "locked" ? lbl("تم قبول التوصيل", "Delivery accepted") : lbl("جاري البث لشركات التوصيل...", "Broadcasting to delivery apps...")}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {o.notes && <div className="text-xs mt-1">📝 {o.notes}</div>}
+                    </div>
+                    <div className="text-xs space-y-0.5">
+                      {(o.items ?? []).map((it: any) => (
+                        <div key={it.id} className="flex justify-between">
+                          <span>{it.quantity}× {ar ? it.nameAr : it.nameEn}{(ar ? it.sizeNameAr : it.sizeNameEn) ? ` (${ar ? it.sizeNameAr : it.sizeNameEn})` : ""}</span>
+                          <span className="text-muted-c">{it.lineTotal}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t border-black/10 pt-1 mt-1">
+                        <span>{t.subtotal}: {o.subtotal}</span>
+                        {Number(o.discountAmount) > 0 && <span className="text-green-600">{t.discount}: -{o.discountAmount} {o.promoCode && `(${o.promoCode})`}</span>}
                       </div>
-                    )}
-                    <div className="font-extrabold text-sm text-accent-c">{t.total}: {o.total} {t.currency}</div>
+                      {o.orderType === "delivery" && (
+                        <div className="text-muted-c">
+                          {t.deliveryFee}: {o.deliveryFeeTotal} ({lbl("العميل", "customer")}: {o.deliveryFeeCustomer} / {lbl("المطعم", "restaurant")}: {o.deliveryFeeRestaurant})
+                        </div>
+                      )}
+                      <div className="font-extrabold text-sm text-accent-c">{t.total}: {o.total} {t.currency}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
