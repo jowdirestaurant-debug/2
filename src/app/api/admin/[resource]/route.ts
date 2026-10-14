@@ -253,7 +253,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         return NextResponse.json({ data: { ...row, passwordHash: undefined } });
       }
       case "settings": {
-        // bulk upsert: body = { settings: { key: value } }
         const entries = Object.entries(body.settings ?? {}) as [string, string][];
         for (const [key, value] of entries) {
           await db.insert(siteSettings).values({ key, value }).onConflictDoUpdate({ target: siteSettings.key, set: { value } });
@@ -261,7 +260,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         return NextResponse.json({ ok: true });
       }
       case "content": {
-        // bulk upsert: body = { content: [{key, valueAr, valueEn}] }
         for (const c of body.content ?? []) {
           await db.insert(siteContent).values({ key: c.key, valueAr: c.valueAr, valueEn: c.valueEn })
             .onConflictDoUpdate({ target: siteContent.key, set: { valueAr: c.valueAr, valueEn: c.valueEn } });
@@ -365,13 +363,29 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       case "staff": {
         if (member.role !== "superadmin" && member.id !== id) return bad("forbidden", 403);
+        
+        const [targetStaff] = await db.select().from(staff).where(eq(staff.id, id)).limit(1);
+        if (targetStaff?.username === "moosameftah" && member.id !== id) {
+          return bad("cannot_modify_superadmin", 403);
+        }
+
         const set: Partial<typeof staff.$inferInsert> = {};
         if (body.fullName !== undefined) set.fullName = body.fullName;
         if (body.email !== undefined) set.email = body.email || null;
         if (member.role === "superadmin") {
-          if (body.role !== undefined) set.role = body.role;
+          if (body.role !== undefined) {
+            if (targetStaff?.username === "moosameftah" && body.role !== "superadmin") {
+              return bad("cannot_change_superadmin_role", 403);
+            }
+            set.role = body.role;
+          }
           if (body.permissions !== undefined) set.permissions = body.permissions;
-          if (body.isActive !== undefined) set.isActive = !!body.isActive;
+          if (body.isActive !== undefined) {
+            if (targetStaff?.username === "moosameftah" && !body.isActive) {
+              return bad("cannot_deactivate_superadmin", 403);
+            }
+            set.isActive = !!body.isActive;
+          }
         }
         if (body.password) set.passwordHash = await hashPassword(String(body.password));
         const [row] = await db.update(staff).set(set).where(eq(staff.id, id)).returning();
