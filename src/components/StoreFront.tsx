@@ -55,6 +55,7 @@ export default function StoreFront(props: Props) {
   const [me, setMe] = useState<Me>(null);
   const [showOrders, setShowOrders] = useState(false);
   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<MyOrder | null>(null);
 
   /* checkout state */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -580,24 +581,72 @@ export default function StoreFront(props: Props) {
 
       {/* ---------- My orders modal ---------- */}
       {showOrders && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowOrders(false)}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowOrders(false); setSelectedOrder(null); }}>
           <div className="card w-full max-w-lg max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-extrabold text-primary-c">{t.myOrders}</h3>
-              <button onClick={() => setShowOrders(false)} className="text-muted-c hover:text-red-500 text-xl">✕</button>
+              <h3 className="text-xl font-extrabold text-primary-c">
+                {selectedOrder ? (ar ? `تفاصيل الفاتورة #${selectedOrder.orderNumber}` : `Invoice #${selectedOrder.orderNumber}`) : t.myOrders}
+              </h3>
+              <button onClick={() => { setShowOrders(false); setSelectedOrder(null); }} className="text-muted-c hover:text-red-500 text-xl">✕</button>
             </div>
-            {myOrders.length === 0 ? (
-              <div className="text-center text-muted-c py-10">—</div>
-            ) : (
-              <div className="space-y-3">
-                {myOrders.map((o) => (
-                  <div key={o.id} className="border border-black/10 rounded-xl p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="font-extrabold">{o.orderNumber}</span>
-                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">{t.orderStatus[o.status] ?? o.status}</span>
+
+            {!selectedOrder ? (
+              myOrders.length === 0 ? (
+                <div className="text-center text-muted-c py-10">—</div>
+              ) : (
+                <div className="space-y-3">
+                  {myOrders.map((o) => (
+                    <div 
+                      key={o.id} 
+                      onClick={() => setSelectedOrder(o)}
+                      className="border border-black/10 rounded-xl p-4 cursor-pointer hover:border-accent-c transition flex justify-between items-center"
+                    >
+                      <div>
+                        <span className="font-extrabold">{o.orderNumber}</span>
+                        <div className="text-xs text-muted-c mt-1">{new Date(o.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-sm">{o.total} {currency}</span>
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">{t.orderStatus[o.status] ?? o.status}</span>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="space-y-4">
+                <button 
+                  onClick={() => setSelectedOrder(null)} 
+                  className="text-sm font-bold text-accent-c hover:underline flex items-center gap-1"
+                >
+                  {ar ? "← العودة إلى قائمة الطلبات" : "← Back to Orders"}
+                </button>
+
+                <div className="bg-surface/50 border border-black/10 rounded-xl p-4 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-c">{ar ? "نوع الطلب:" : "Order Type:"}</span><span className="font-bold">{t[selectedOrder.orderType] ?? selectedOrder.orderType}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-c">{ar ? "الحالة:" : "Status:"}</span><span className="font-bold">{t.orderStatus[selectedOrder.status] ?? selectedOrder.status}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-c">{ar ? "التاريخ:" : "Date:"}</span><span className="font-bold">{new Date(selectedOrder.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</span></div>
+                </div>
+
+                <div className="border-t border-black/10 pt-3">
+                  <div className="font-bold text-sm mb-3">{ar ? "الأصناف المطلوبة:" : "Ordered Items:"}</div>
+                  <div className="space-y-2">
+                    {selectedOrder.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm border-b border-black/5 pb-2">
+                        <div>
+                          <div className="font-bold">{ar ? item.nameAr : item.nameEn} {item.sizeNameAr && <span className="text-muted-c font-normal">({ar ? item.sizeNameAr : item.sizeNameEn})</span>}</div>
+                          <div className="text-xs text-muted-c">{ar ? "الكمية:" : "Qty:"} {item.quantity}</div>
+                        </div>
+                        <div className="font-bold">{price(Number(item.lineTotal))} {currency}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                <div className="border-t border-black/10 pt-3 flex justify-between items-center text-lg font-extrabold">
+                  <span>{t.total}:</span>
+                  <span className="text-accent-c">{selectedOrder.total} {currency}</span>
+                </div>
               </div>
             )}
           </div>
