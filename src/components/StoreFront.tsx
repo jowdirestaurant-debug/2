@@ -623,9 +623,18 @@ export default function StoreFront(props: Props) {
                 </button>
 
                 <div className="bg-surface/50 border border-black/10 rounded-xl p-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-c">{ar ? "نوع الطلب:" : "Order Type:"}</span><span className="font-bold">{t[selectedOrder.orderType] ?? selectedOrder.orderType}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-c">{ar ? "الحالة:" : "Status:"}</span><span className="font-bold">{t.orderStatus[selectedOrder.status] ?? selectedOrder.status}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-c">{ar ? "التاريخ:" : "Date:"}</span><span className="font-bold">{new Date(selectedOrder.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</span></div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-c">{ar ? "نوع الطلب:" : "Order Type:"}</span>
+                    <span className="font-bold">{(t as Record<string, any>)[selectedOrder.orderType] ?? selectedOrder.orderType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-c">{ar ? "الحالة:" : "Status:"}</span>
+                    <span className="font-bold">{t.orderStatus[selectedOrder.status] ?? selectedOrder.status}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-c">{ar ? "التاريخ:" : "Date:"}</span>
+                    <span className="font-bold">{new Date(selectedOrder.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</span>
+                  </div>
                 </div>
 
                 <div className="border-t border-black/10 pt-3">
