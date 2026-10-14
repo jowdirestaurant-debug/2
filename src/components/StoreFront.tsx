@@ -1,6 +1,6 @@
 "use client";
 import { isRestaurantOpen } from "@/lib/openingHours";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { getDict, type Locale } from "@/lib/i18n";
 
 /* ---------- Types ---------- */
@@ -57,6 +57,10 @@ export default function StoreFront(props: Props) {
   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<MyOrder | null>(null);
 
+  /* Alert state for status change */
+  const [alertingOrderId, setAlertingOrderId] = useState<number | null>(null);
+  const prevOrdersRef = useRef<Map<number, string>>(new Map());
+
   /* checkout state */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway" | "delivery">("delivery");
@@ -74,6 +78,49 @@ export default function StoreFront(props: Props) {
   const [placing, setPlacing] = useState(false);
   const [orderDone, setOrderDone] = useState<{ orderNumber: string; total: string } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const playAlertSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // نغمة التنبيه
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+  };
+
+  const fetchOrdersSilent = useCallback(async () => {
+    if (!me) return;
+    try {
+      const res = await fetch("/api/orders");
+      const d = await res.json();
+      if (d.orders && Array.isArray(d.orders)) {
+        let statusChanged = false;
+        d.orders.forEach((newOrder: MyOrder) => {
+          const oldStatus = prevOrdersRef.current.get(newOrder.id);
+          if (oldStatus && oldStatus !== newOrder.status) {
+            statusChanged = true;
+            setAlertingOrderId(newOrder.id);
+            playAlertSound();
+            setTimeout(() => {
+              setAlertingOrderId(null);
+            }, 2000); // تنبيه لمدة ثانيتين
+          }
+          prevOrdersRef.current.set(newOrder.id, newOrder.status);
+        });
+        setMyOrders(d.orders);
+        if (selectedOrder) {
+          const updatedSelected = d.orders.find((o: MyOrder) => o.id === selectedOrder.id);
+          if (updatedSelected) setSelectedOrder(updatedSelected);
+        }
+      }
+    } catch {}
+  }, [me, selectedOrder]);
 
   useEffect(() => {
     try {
@@ -99,6 +146,14 @@ export default function StoreFront(props: Props) {
   useEffect(() => {
     localStorage.setItem("jowdi_cart", JSON.stringify(cart));
   }, [cart]);
+
+  // Polling للتحقق من تحديثات حالة الطلب كل 10 ثوانٍ
+  useEffect(() => {
+    if (!me) return;
+    fetchOrdersSilent();
+    const interval = setInterval(fetchOrdersSilent, 10000);
+    return () => clearInterval(interval);
+  }, [me, fetchOrdersSilent]);
 
   const switchLocale = async () => {
     await fetch("/api/auth/locale", {
@@ -212,6 +267,7 @@ export default function StoreFront(props: Props) {
         setCart([]);
         setPromoResult(null);
         setPromo("");
+        fetchOrdersSilent();
       } else if (d.error === "banned") {
         setErrorMsg(t.banned);
       } else if (d.error === "promo_invalid") {
@@ -225,9 +281,7 @@ export default function StoreFront(props: Props) {
   };
 
   const loadMyOrders = async () => {
-    const res = await fetch("/api/orders");
-    const d = await res.json();
-    setMyOrders(d.orders ?? []);
+    await fetchOrdersSilent();
     setShowOrders(true);
   };
 
@@ -595,22 +649,30 @@ export default function StoreFront(props: Props) {
                 <div className="text-center text-muted-c py-10">—</div>
               ) : (
                 <div className="space-y-3">
-                  {myOrders.map((o) => (
-                    <div 
-                      key={o.id} 
-                      onClick={() => setSelectedOrder(o)}
-                      className="border border-black/10 rounded-xl p-4 cursor-pointer hover:border-accent-c transition flex justify-between items-center"
-                    >
-                      <div>
-                        <span className="font-extrabold">{o.orderNumber}</span>
-                        <div className="text-xs text-muted-c mt-1">{new Date(o.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</div>
+                  {myOrders.map((o) => {
+                    const isAlerting = alertingOrderId === o.id;
+                    return (
+                      <div 
+                        key={o.id} 
+                        onClick={() => setSelectedOrder(o)}
+                        className={`border rounded-xl p-4 cursor-pointer transition flex justify-between items-center ${
+                          isAlerting 
+                            ? "border-amber-500 bg-amber-500/10 animate-pulse shadow-lg ring-2 ring-amber-500" 
+                            : "border-black/10 hover:border-accent-c"
+                        }`}
+                      >
+                        <div>
+                          <span className="font-extrabold">{o.orderNumber}</span>
+                          <div className="text-xs text-muted-c mt-1">{new Date(o.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</div>
+                          {isAlerting && <div className="text-xs font-bold text-amber-600 mt-1 animate-bounce">✨ تم تحديث حالة الطلب!</div>}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-sm">{o.total} {currency}</span>
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">{t.orderStatus[o.status] ?? o.status}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm">{o.total} {currency}</span>
-                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">{t.orderStatus[o.status] ?? o.status}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )
             ) : (
@@ -622,14 +684,14 @@ export default function StoreFront(props: Props) {
                   {ar ? "← العودة إلى قائمة الطلبات" : "← Back to Orders"}
                 </button>
 
-                <div className="bg-surface/50 border border-black/10 rounded-xl p-4 space-y-2 text-sm">
+                <div className={`border rounded-xl p-4 space-y-2 text-sm transition ${alertingOrderId === selectedOrder.id ? "border-amber-500 bg-amber-500/10 animate-pulse shadow-lg" : "bg-surface/50 border-black/10"}`}>
                   <div className="flex justify-between">
                     <span className="text-muted-c">{ar ? "نوع الطلب:" : "Order Type:"}</span>
                     <span className="font-bold">{(t as Record<string, any>)[selectedOrder.orderType] ?? selectedOrder.orderType}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-c">{ar ? "الحالة:" : "Status:"}</span>
-                    <span className="font-bold">{t.orderStatus[selectedOrder.status] ?? selectedOrder.status}</span>
+                    <span className="font-bold text-accent-c">{t.orderStatus[selectedOrder.status] ?? selectedOrder.status}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-c">{ar ? "التاريخ:" : "Date:"}</span>
