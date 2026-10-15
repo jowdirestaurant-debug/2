@@ -652,8 +652,11 @@ export default function StoreFront(props: Props) {
               {t.checkout}
             </button>
           )}
-        </>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
-  </div>
-)}
+  );
+}
