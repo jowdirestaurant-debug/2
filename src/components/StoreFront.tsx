@@ -645,7 +645,7 @@ export default function StoreFront(props: Props) {
 
                 const open1 = settings.restaurant_open_time_1 || "08:00";
     const close1 = settings.restaurant_close_time_1 || "15:00";
-    const isShift2Active = settings.restaurant_shift2_enabled === "1" || settings.restaurant_shift2_enabled === "true" || settings.restaurant_shift2_enabled === true;
+    const isShift2Active = settings.restaurant_shift2_enabled === "1" || settings.restaurant_shift2_enabled === "true";
     const open2 = settings.restaurant_open_time_2 || "18:00";
     const close2 = settings.restaurant_close_time_2 || "00:00";
 
@@ -688,18 +688,18 @@ export default function StoreFront(props: Props) {
     }
 
     setErrorMsg("");
-                setCheckoutOpen(true);
-              }} 
-              className="btn-primary w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg"
-            >
-              {t.checkout}
-            </button>
-          )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    setCheckoutOpen(true);
+  }}  
+  className="btn-primary w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg"
+>
+  {t.checkout}
+</button>
+  )}
+  </>
+)}
+</div>
+</div>
+)}
+</div>
+);
 }
