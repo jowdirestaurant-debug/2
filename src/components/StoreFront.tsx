@@ -702,9 +702,39 @@ export default function StoreFront(props: Props) {
   )}
   </>
 )}
-</div>
-</div>
+<</div>
+  </div>
 )}
-</div>
-);
+
+      {/* ---------- Popups Modal ---------- */}
+      {popups && popups.length > 0 && popups.map((popup) => {
+        if (dismissedPopups.includes(popup.id)) return null;
+        return (
+          <div key={popup.id} className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="card w-full max-w-lg p-6 bg-surface shadow-2xl relative animate-in fade-in zoom-in duration-200">
+              <button 
+                onClick={() => setDismissedPopups((prev) => [...prev, popup.id])} 
+                className="absolute top-4 end-4 text-muted-c hover:text-red-500 text-xl font-bold"
+              >
+                ✕
+              </button>
+              {popup.imageUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={popup.imageUrl} alt="" className="w-full h-48 object-cover rounded-xl mb-4" />
+              )}
+              <h3 className="text-xl font-extrabold text-primary-c">{ar ? popup.titleAr : popup.titleEn}</h3>
+              <p className="text-sm text-muted-c mt-2 leading-relaxed">{ar ? popup.bodyAr : popup.bodyEn}</p>
+              <button 
+                onClick={() => setDismissedPopups((prev) => [...prev, popup.id])}
+                className="btn-primary w-full mt-6 py-3 rounded-xl font-extrabold"
+              >
+                {ar ? "حسناً" : "OK"}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+    </div>
+  );
 }
