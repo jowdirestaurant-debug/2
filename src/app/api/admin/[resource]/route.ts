@@ -197,9 +197,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       }
       case "regions": {
         const [row] = await db.insert(regions).values({
-          governorateId: Number(body.governorateId),
-          nameAr: body.nameAr,
-          nameEn: body.nameEn,
+          governorateId: Number(body.governorateId), 
+          nameAr: body.nameAr, 
+          nameEn: body.nameEn, 
           deliveryFee: body.deliveryFee === null || body.deliveryFee === "" || body.deliveryFee === undefined ? null : String(Number(body.deliveryFee)),
           isActive: body.isActive !== false,
         }).returning();
@@ -332,9 +332,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       case "regions": {
         const [row] = await db.update(regions).set({
-          governorateId: Number(body.governorateId),
-          nameAr: body.nameAr,
-          nameEn: body.nameEn,
+          governorateId: Number(body.governorateId), 
+          nameAr: body.nameAr, 
+          nameEn: body.nameEn, 
           deliveryFee: body.deliveryFee === null || body.deliveryFee === "" || body.deliveryFee === undefined ? null : String(Number(body.deliveryFee)),
           isActive: body.isActive !== false,
         }).where(eq(regions.id, id)).returning();
