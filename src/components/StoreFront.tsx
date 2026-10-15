@@ -618,111 +618,42 @@ export default function StoreFront(props: Props) {
 
                 {errorMsg && <div className="mt-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl px-4 py-3">{errorMsg}</div>}
 
-                {checkoutOpen ? (
-                  <button onClick={placeOrder} disabled={placing} className="btn-accent w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg disabled:opacity-50">
-                    {placing ? "..." : `${t.placeOrder} — ${price(grandTotal)} ${currency}`}
-                  </button>
-                ) : (
-                  <button onClick={() => setCheckoutOpen(true)} className="btn-primary w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg">
-                    {t.checkout}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+          {checkoutOpen ? (
+            <button onClick={placeOrder} disabled={placing} className="btn-accent w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg disabled:opacity-50">
+              {placing ? "..." : `${t.placeOrder} — ${price(grandTotal)} ${currency}`}
+            </button>
+          ) : (
+            <button 
+              onClick={() => {
+                const openTime = settings.restaurant_open_time || "08:00";
+                const closeTime = settings.restaurant_close_time || "23:59";
+                const manualOverride = settings.restaurant_manual_override;
 
-      {/* ---------- My orders modal ---------- */}
-      {showOrders && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowOrders(false); setSelectedOrder(null); }}>
-          <div className="card w-full max-w-lg max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-extrabold text-primary-c">
-                {selectedOrder ? (ar ? `تفاصيل الفاتورة #${selectedOrder.orderNumber}` : `Invoice #${selectedOrder.orderNumber}`) : t.myOrders}
-              </h3>
-              <button onClick={() => { setShowOrders(false); setSelectedOrder(null); }} className="text-muted-c hover:text-red-500 text-xl">✕</button>
-            </div>
+                if (manualOverride === "closed") {
+                  setErrorMsg(ar ? "عذراً، المطعم مغلق حالياً من قبل الإدارة" : "Sorry, the restaurant is currently closed by management");
+                  return;
+                }
 
-            {!selectedOrder ? (
-              myOrders.length === 0 ? (
-                <div className="text-center text-muted-c py-10">—</div>
-              ) : (
-                <div className="space-y-3">
-                  {myOrders.map((o) => {
-                    const isAlerting = alertingOrderId === o.id;
-                    return (
-                      <div 
-                        key={o.id} 
-                        onClick={() => setSelectedOrder(o)}
-                        className={`border rounded-xl p-4 cursor-pointer transition flex justify-between items-center ${
-                          isAlerting 
-                            ? "border-amber-500 bg-amber-500/10 animate-pulse shadow-lg ring-2 ring-amber-500" 
-                            : "border-black/10 hover:border-accent-c"
-                        }`}
-                      >
-                        <div>
-                          <span className="font-extrabold">{o.orderNumber}</span>
-                          <div className="text-xs text-muted-c mt-1">{new Date(o.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</div>
-                          {isAlerting && <div className="text-xs font-bold text-amber-600 mt-1 animate-bounce">✨ تم تحديث حالة الطلب!</div>}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-sm">{o.total} {currency}</span>
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">{t.orderStatus[o.status] ?? o.status}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            ) : (
-              <div className="space-y-4">
-                <button 
-                  onClick={() => setSelectedOrder(null)} 
-                  className="text-sm font-bold text-accent-c hover:underline flex items-center gap-1"
-                >
-                  {ar ? "← العودة إلى قائمة الطلبات" : "← Back to Orders"}
-                </button>
+                const now = new Date();
+                const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                
+                if (openTime <= closeTime) {
+                  if (currentTime < openTime || currentTime > closeTime) {
+                    setErrorMsg(ar ? `عذراً، المطعم مغلق حالياً. أوقات العمل من ${openTime} إلى ${closeTime}` : `Sorry, the restaurant is closed. Working hours: ${openTime} - ${closeTime}`);
+                    return;
+                  }
+                }
 
-                <div className={`border rounded-xl p-4 space-y-2 text-sm transition ${alertingOrderId === selectedOrder.id ? "border-amber-500 bg-amber-500/10 animate-pulse shadow-lg" : "bg-surface/50 border-black/10"}`}>
-                  <div className="flex justify-between">
-                    <span className="text-muted-c">{ar ? "نوع الطلب:" : "Order Type:"}</span>
-                    <span className="font-bold">{(t as Record<string, any>)[selectedOrder.orderType] ?? selectedOrder.orderType}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-c">{ar ? "الحالة:" : "Status:"}</span>
-                    <span className="font-bold text-accent-c">{t.orderStatus[selectedOrder.status] ?? selectedOrder.status}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-c">{ar ? "التاريخ:" : "Date:"}</span>
-                    <span className="font-bold">{new Date(selectedOrder.createdAt).toLocaleString(ar ? "ar-BH" : "en-US")}</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-black/10 pt-3">
-                  <div className="font-bold text-sm mb-3">{ar ? "الأصناف المطلوبة:" : "Ordered Items:"}</div>
-                  <div className="space-y-2">
-                    {selectedOrder.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm border-b border-black/5 pb-2">
-                        <div>
-                          <div className="font-bold">{ar ? item.nameAr : item.nameEn} {item.sizeNameAr && <span className="text-muted-c font-normal">({ar ? item.sizeNameAr : item.sizeNameEn})</span>}</div>
-                          <div className="text-xs text-muted-c">{ar ? "الكمية:" : "Qty:"} {item.quantity}</div>
-                        </div>
-                        <div className="font-bold">{price(Number(item.lineTotal))} {currency}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-black/10 pt-3 flex justify-between items-center text-lg font-extrabold">
-                  <span>{t.total}:</span>
-                  <span className="text-accent-c">{selectedOrder.total} {currency}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+                setErrorMsg("");
+                setCheckoutOpen(true);
+              }} 
+              className="btn-primary w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg"
+            >
+              {t.checkout}
+            </button>
+          )}
+        </>
       )}
     </div>
-  );
-}
+  </div>
+)}
