@@ -650,44 +650,45 @@ export default function StoreFront(props: Props) {
                 const close2 = settings.restaurant_close_time_2 || "00:00";
 
                 const now = new Date();
-                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-                const toMins = (tStr: string) => {
-                  const [h, m] = tStr.split(":").map(Number);
-                  if (h === 0 && m === 0) return 1440;
-                  return h * 60 + m;
-                };
+    const toMins = (tStr: string) => {
+      const [h, m] = tStr.split(":").map(Number);
+      if (h === 0 && m === 0) return 1440;
+      return h * 60 + m;
+    };
 
-                const inShift = (nowMins: number, startStr: string, endStr: string) => {
-                  const startMins = toMins(startStr);
-                  let endMins = toMins(endStr);
-                  if (endMins < startMins) {
-                    return nowMins >= startMins || nowMins <= endMins;
-                  }
-                  return nowMins >= startMins && nowMins <= endMins;
-                };
+    const inShift = (nowMins: number, startStr: string, endStr: string) => {
+      const startMins = toMins(startStr);
+      let endMins = toMins(endStr);
+      if (endMins < startMins) {
+        return nowMins >= startMins || nowMins <= endMins;
+      }
+      return nowMins >= startMins && nowMins <= endMins;
+    };
 
-                const isShift1Open = inShift(currentMinutes, open1, close1);
-                const isShift2Open = isShift2Active ? inShift(currentMinutes, open2, close2) : false;
+    const isShift1Open = inShift(currentMinutes, open1, close1);
+    const isShift2Active = Boolean(open2 && close2 && open2 !== "00:00" && close2 !== "00:00");
+    const isShift2Open = isShift2Active ? inShift(currentMinutes, open2, close2) : false;
 
-                if (!isShift1Open && !isShift2Open) {
-                  if (isShift2Active) {
-                    setErrorMsg(
-                      ar 
-                        ? `عذراً، المطعم مغلق حالياً. أوقات العمل: (الفترة الأولى: من ${open1} إلى ${close1}) - (الفترة الثانية: من ${open2} إلى ${close2})` 
-                        : `Sorry, restaurant closed. Hours: (${open1} to ${close1}) & (${open2} to ${close2})`
-                    );
-                  } else {
-                    setErrorMsg(
-                      ar 
-                        ? `عذراً، المطعم مغلق حالياً. أوقات العمل الرسمية: من ${open1} إلى ${close1}` 
-                        : `Sorry, restaurant closed. Working hours: from ${open1} to ${close1}`
-                    );
-                  }
-                  return;
-                }
+    if (!isShift1Open && !isShift2Open) {
+      if (isShift2Active) {
+        setErrorMsg(
+          ar
+            ? `عذراً، المطعم مغلق حالياً. أوقات العمل: من ${open1} إلى ${close1} - ومن ${open2} إلى ${close2}`
+            : `Sorry, restaurant closed. Hours: (${open1} to ${close1}) & (${open2} to ${close2})`
+        );
+      } else {
+        setErrorMsg(
+          ar
+            ? `عذراً، المطعم مغلق حالياً. أوقات العمل الرسمية: من ${open1} إلى ${close1}`
+            : `Sorry, restaurant closed. Working hours: from ${open1} to ${close1}`
+        );
+      }
+      return;
+    }
 
-                setErrorMsg("");
+    setErrorMsg("");
                 setCheckoutOpen(true);
               }} 
               className="btn-primary w-full mt-4 py-3.5 rounded-xl font-extrabold text-lg"
