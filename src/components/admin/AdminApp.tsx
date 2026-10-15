@@ -43,6 +43,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
   const [orders, setOrders] = useState<Row[]>([]);
   const [unack, setUnack] = useState(0);
   const [alarmOn, setAlarmOn] = useState(false);
+  const [selectedAdminOrder, setSelectedAdminOrder] = useState<Row | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alarmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const periodicAlarmRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -268,75 +269,112 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         {tab === "orders" && (
           <div className="space-y-3">
             {orders.length === 0 && <div className="card p-10 text-center text-muted-c">{lbl("لا توجد طلبات بعد", "No orders yet")}</div>}
-            {orders.map((o) => {
-              const isLocked = (o.status === "completed" || o.status === "cancelled") && me.role !== "superadmin";
-              return (
-                <div key={o.id} className={`card p-4 ${!o.acknowledged ? "ring-2 ring-red-400" : ""}`}>
-                  <div className="flex flex-wrap items-center gap-3 justify-between">
-                    <div>
-                      <span className="font-extrabold text-primary-c">{o.orderNumber}</span>
-                      <span className="text-xs text-muted-c ms-2" dir="ltr">{new Date(o.createdAt).toLocaleString("en-GB")}</span>
-                      {!o.acknowledged && <span className="ms-2 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{lbl("جديد", "NEW")}</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
-                        {o.orderType === "dine_in" ? t.dineIn : o.orderType === "takeaway" ? t.takeaway : t.delivery}
-                      </span>
-                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
-                        {o.paymentMethod === "cash" ? t.cash : o.paymentMethod === "benefitpay" ? t.benefitpay : t.card}
-                      </span>
-                      <select 
-                        value={o.status} 
-                        disabled={isLocked}
-                        onChange={(e) => updateOrder(o.id, { status: e.target.value })} 
-                        className="border border-black/15 rounded-lg px-2 py-1 text-xs font-bold bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      >
-                        {STATUSES.map((s) => <option key={s} value={s}>{t.orderStatus[s] ?? s}</option>)}
-                      </select>
-                    </div>
+            
+            {selectedAdminOrder ? (
+              <div className="card p-6 space-y-4">
+                <button 
+                  onClick={() => setSelectedAdminOrder(null)} 
+                  className="text-sm font-bold text-accent-c hover:underline flex items-center gap-1"
+                >
+                  {ar ? "← العودة إلى قائمة الطلبات" : "← Back to Orders"}
+                </button>
+
+                <div className="border-b border-black/10 pb-4 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-extrabold text-primary-c">
+                      {ar ? `فاتورة رقم #${selectedAdminOrder.orderNumber}` : `Invoice #${selectedAdminOrder.orderNumber}`}
+                    </h3>
+                    <div className="text-xs text-muted-c mt-1" dir="ltr">{new Date(selectedAdminOrder.createdAt).toLocaleString("en-GB")}</div>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-3 mt-3 text-sm">
-                    <div>
-                      <div className="font-bold">{o.customerName} — <span dir="ltr">{o.customerPhone}</span></div>
-                      {o.customerEmail && <div className="text-xs text-muted-c" dir="ltr">{o.customerEmail}</div>}
-                      {o.orderType === "delivery" && (
-                        <div className="text-xs text-muted-c mt-1">
-                          📍 {(() => {
-                            const g = govs.find((x) => x.id === o.governorateId);
-                            const r = regs.find((x) => x.id === o.regionId);
-                            return `${g ? (ar ? g.nameAr : g.nameEn) : ""} ${r ? "— " + (ar ? r.nameAr : r.nameEn) : ""}`;
-                          })()} — {o.addressDetails}
-                          {o.dispatchStatus && (
-                            <span className={`ms-2 font-bold ${o.dispatchStatus === "locked" ? "text-green-600" : "text-amber-600"}`}>
-                              {o.dispatchStatus === "locked" ? lbl("تم قبول التوصيل", "Delivery accepted") : lbl("جاري البث لشركات التوصيل...", "Broadcasting to delivery apps...")}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {o.notes && <div className="text-xs mt-1">📝 {o.notes}</div>}
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary-c text-white">
+                    {t.orderStatus[selectedAdminOrder.status] ?? selectedAdminOrder.status}
+                  </span>
+                </div>
+
+                <div className="text-sm space-y-1 bg-surface/50 p-4 rounded-xl border border-black/5">
+                  <div className="font-bold text-base mb-2">{ar ? "معلومات العميل:" : "Customer Info:"}</div>
+                  <div>{ar ? "الاسم:" : "Name:"} <span className="font-bold">{selectedAdminOrder.customerName}</span></div>
+                  <div>{ar ? "الهاتف:" : "Phone:"} <span className="font-bold" dir="ltr">{selectedAdminOrder.customerPhone}</span></div>
+                  {selectedAdminOrder.customerEmail && <div>{ar ? "البريد:" : "Email:"} <span className="font-bold" dir="ltr">{selectedAdminOrder.customerEmail}</span></div>}
+                  {selectedAdminOrder.orderType === "delivery" && (
+                    <div className="mt-2 pt-2 border-t border-black/5">
+                      📍 {selectedAdminOrder.addressDetails}
                     </div>
-                    <div className="text-xs space-y-0.5">
-                      {(o.items ?? []).map((it: any) => (
-                        <div key={it.id} className="flex justify-between">
-                          <span>{it.quantity}× {ar ? it.nameAr : it.nameEn}{(ar ? it.sizeNameAr : it.sizeNameEn) ? ` (${ar ? it.sizeNameAr : it.sizeNameEn})` : ""}</span>
-                          <span className="text-muted-c">{it.lineTotal}</span>
+                  )}
+                </div>
+
+                <div>
+                  <div className="font-bold text-sm mb-3">{ar ? "الأصناف المطلوبة:" : "Ordered Items:"}</div>
+                  <div className="space-y-2">
+                    {(selectedAdminOrder.items ?? []).map((it: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-sm border-b border-black/5 pb-2">
+                        <div>
+                          <div className="font-bold">
+                            {ar ? it.nameAr : it.nameEn} 
+                            {(ar ? it.sizeNameAr : it.sizeNameEn) && <span className="text-muted-c font-normal"> ({ar ? it.sizeNameAr : it.sizeNameEn})</span>}
+                          </div>
+                          <div className="text-xs text-muted-c">{ar ? "الكمية:" : "Qty:"} {it.quantity}</div>
                         </div>
-                      ))}
-                      <div className="flex justify-between border-t border-black/10 pt-1 mt-1">
-                        <span>{t.subtotal}: {o.subtotal}</span>
-                        {Number(o.discountAmount) > 0 && <span className="text-green-600">{t.discount}: -{o.discountAmount} {o.promoCode && `(${o.promoCode})`}</span>}
+                        <div className="font-bold">{it.lineTotal} {t.currency}</div>
                       </div>
-                      {o.orderType === "delivery" && (
-                        <div className="text-muted-c">
-                          {t.deliveryFee}: {o.deliveryFeeTotal} ({lbl("العميل", "customer")}: {o.deliveryFeeCustomer} / {lbl("المطعم", "restaurant")}: {o.deliveryFeeRestaurant})
-                        </div>
-                      )}
-                      <div className="font-extrabold text-sm text-accent-c">{t.total}: {o.total} {t.currency}</div>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="border-t border-black/15 pt-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-c">{t.subtotal}</span><span className="font-bold">{selectedAdminOrder.subtotal} {t.currency}</span></div>
+                  {Number(selectedAdminOrder.discountAmount) > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>{t.discount} {selectedAdminOrder.promoCode && `(${selectedAdminOrder.promoCode})`}</span>
+                      <span className="font-bold">-{selectedAdminOrder.discountAmount} {t.currency}</span>
+                    </div>
+                  )}
+                  {selectedAdminOrder.orderType === "delivery" && (
+                    <div className="flex justify-between"><span className="text-muted-c">{t.deliveryFee}</span><span className="font-bold">{selectedAdminOrder.deliveryFeeCustomer} {t.currency}</span></div>
+                  )}
+                  <div className="flex justify-between text-lg font-extrabold pt-2 border-t border-black/10">
+                    <span>{t.total}:</span>
+                    <span className="text-accent-c">{selectedAdminOrder.total} {t.currency}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              orders.map((o) => {
+                const isLocked = (o.status === "completed" || o.status === "cancelled") && me.role !== "superadmin";
+                return (
+                  <div key={o.id} className={`card p-4 ${!o.acknowledged ? "ring-2 ring-red-400" : ""}`}>
+                    <div className="flex flex-wrap items-center gap-3 justify-between">
+                      <div>
+                        <span 
+                          onClick={() => setSelectedAdminOrder(o)} 
+                          className="font-extrabold text-primary-c cursor-pointer hover:text-accent-c underline"
+                        >
+                          {o.orderNumber} (🔍 {ar ? "عرض الفاتورة" : "View Invoice"})
+                        </span>
+                        <span className="text-xs text-muted-c ms-2" dir="ltr">{new Date(o.createdAt).toLocaleString("en-GB")}</span>
+                        {!o.acknowledged && <span className="ms-2 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{lbl("جديد", "NEW")}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
+                          {o.orderType === "dine_in" ? t.dineIn : o.orderType === "takeaway" ? t.takeaway : t.delivery}
+                        </span>
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">
+                          {o.paymentMethod === "cash" ? t.cash : o.paymentMethod === "benefitpay" ? t.benefitpay : t.card}
+                        </span>
+                        <select 
+                          value={o.status} 
+                          disabled={isLocked}
+                          onChange={(e) => updateOrder(o.id, { status: e.target.value })} 
+                          className="border border-black/15 rounded-lg px-2 py-1 text-xs font-bold bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                          {STATUSES.map((s) => <option key={s} value={s}>{t.orderStatus[s] ?? s}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
 
