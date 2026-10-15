@@ -702,8 +702,8 @@ export default function StoreFront(props: Props) {
   )}
   </>
 )}
-<</div>
-  </div>
+</div>
+</div>
 )}
 
       {/* ---------- Popups Modal ---------- */}
