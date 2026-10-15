@@ -645,7 +645,7 @@ export default function StoreFront(props: Props) {
 
                 const open1 = settings.restaurant_open_time_1 || "08:00";
                 const close1 = settings.restaurant_close_time_1 || "15:00";
-                const isShift2Active = settings.restaurant_shift2_enabled === "1";
+                const isShift2Active = settings.restaurant_shift2_enabled === "1" || settings.restaurant_shift2_enabled === "true" || settings.restaurant_shift2_enabled === true || Boolean(open2 && close2);
                 const open2 = settings.restaurant_open_time_2 || "18:00";
                 const close2 = settings.restaurant_close_time_2 || "00:00";
 
