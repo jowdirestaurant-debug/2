@@ -24,9 +24,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const store = await cookies();
   const locale = normalizeLocale(store.get("locale")?.value);
   let themeId = "jowdi-classic";
+  let logoUrl = "/logo.png";
   try {
     const settings = await getSettings();
     themeId = settings.theme || "jowdi-classic";
+    if (settings.logo_url) {
+      logoUrl = settings.logo_url;
+    }
   } catch {
     /* DB not ready yet */
   }
@@ -45,6 +49,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} style={style}>
+      <head>
+        <link rel="icon" href={logoUrl} />
+      </head>
       <body className={`${cairo.variable} antialiased min-h-screen`}>{children}</body>
     </html>
   );
