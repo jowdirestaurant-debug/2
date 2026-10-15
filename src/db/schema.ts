@@ -26,6 +26,7 @@ export const regions = pgTable("regions", {
     .references(() => governorates.id, { onDelete: "cascade" }),
   nameAr: varchar("name_ar", { length: 200 }).notNull(),
   nameEn: varchar("name_en", { length: 200 }).notNull(),
+  deliveryFee: numeric("delivery_fee", { precision: 10, scale: 3 }),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
