@@ -307,7 +307,7 @@ export default function StoreFront(props: Props) {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo} alt={t.brand} className="h-11 w-11 rounded-full object-cover ring-2 ring-accent-c" />
+            <img src={logo} alt={t.brand} className="h-11 w-auto object-contain" />
             <div>
               <div className="font-extrabold text-primary-c leading-5">{t.brand}</div>
               <div className="text-xs text-muted-c">{ar ? "Jowdi Restaurant" : "مطعم الجودي"}</div>
