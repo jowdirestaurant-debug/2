@@ -10,17 +10,17 @@ import SettingsPanel from "./SettingsPanel";
 
 type StaffInfo = { id: number; username: string; fullName: string; role: string } | null;
 
-const TABS = [
-  { id: "orders", ar: "الطلبات", en: "Orders", icon: "🧾" },
-  { id: "reports", ar: "التقارير المالية", en: "Financial Reports", icon: "📊" },
-  { id: "menu", ar: "القائمة والأطباق", en: "Menu & Dishes", icon: "🍽️" },
-  { id: "geo", ar: "المحافظات والمناطق", en: "Governorates & Regions", icon: "🗺️" },
-  { id: "promos", ar: "أكواد الخصم", en: "Promo Codes", icon: "🏷️" },
-  { id: "popups", ar: "النوافذ الإعلانية", en: "Popups", icon: "📢" },
-  { id: "aggregators", ar: "شركات التوصيل", en: "Delivery Apps", icon: "🛵" },
-  { id: "customers", ar: "العملاء والحظر", en: "Customers & Bans", icon: "👥" },
-  { id: "staff", ar: "الموظفون والصلاحيات", en: "Staff & Permissions", icon: "🔐" },
-  { id: "settings", ar: "الإعدادات والقوالب", en: "Settings & Themes", icon: "⚙️" },
+const ALL_TABS = [
+  { id: "orders", ar: "الطلبات", en: "Orders", icon: "🧾", roles: ["superadmin", "manager", "staff"] },
+  { id: "reports", ar: "التقارير المالية", en: "Financial Reports", icon: "📊", roles: ["superadmin", "manager"] },
+  { id: "menu", ar: "القائمة والأطباق", en: "Menu & Dishes", icon: "🍽️", roles: ["superadmin", "manager", "staff"] },
+  { id: "geo", ar: "المحافظات والمناطق", en: "Governorates & Regions", icon: "🗺️", roles: ["superadmin", "manager"] },
+  { id: "promos", ar: "أكواد الخصم", en: "Promo Codes", icon: "🏷️", roles: ["superadmin", "manager"] },
+  { id: "popups", ar: "النوافذ الإعلانية", en: "Popups", icon: "📢", roles: ["superadmin", "manager"] },
+  { id: "aggregators", ar: "شركات التوصيل", en: "Delivery Apps", icon: "🛵", roles: ["superadmin", "manager"] },
+  { id: "customers", ar: "العملاء والحظر", en: "Customers & Bans", icon: "👥", roles: ["superadmin", "manager"] },
+  { id: "staff", ar: "الموظفون والصلاحيات", en: "Staff & Permissions", icon: "🔐", roles: ["superadmin", "manager"] },
+  { id: "settings", ar: "الإعدادات والقوالب", en: "Settings & Themes", icon: "⚙️", roles: ["superadmin", "manager"] },
 ];
 
 const STATUSES = ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "completed", "cancelled"];
@@ -46,7 +46,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
   const [selectedAdminOrder, setSelectedAdminOrder] = useState<Row | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alarmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
+
   // Ref لمتابعة حالة الطلبات بدون إعادة إنشاء المتايمر وتصفيره
   const ordersRef = useRef(orders);
   useEffect(() => {
@@ -232,6 +232,9 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
     );
   }
 
+  // تصفية التبويبات حسب دور المستخدم
+  const availableTabs = ALL_TABS.filter((tb) => tb.roles.includes(me.role));
+
   /* ---------------- dashboard ---------------- */
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -261,7 +264,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
           </div>
         </div>
         <nav className="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto pb-2">
-          {TABS.map((tb) => (
+          {availableTabs.map((tb) => (
             <button key={tb.id} onClick={() => setTab(tb.id)} className={`whitespace-nowrap px-4 py-2 rounded-t-lg text-xs font-bold transition ${tab === tb.id ? "bg-white text-black" : "bg-white/10 hover:bg-white/20"}`} style={tab === tb.id ? { color: "var(--text)", background: "var(--bg)" } : undefined}>
               {tb.icon} {lbl(tb.ar, tb.en)}
               {tb.id === "orders" && unack > 0 && <span className="ms-1 bg-red-500 text-white rounded-full px-1.5">{unack}</span>}
@@ -385,7 +388,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- REPORTS ---------------- */}
-        {tab === "reports" && (
+        {tab === "reports" && me.role !== "staff" && (
           <div className="space-y-4">
             <div className="card p-5">
               <div className="flex flex-wrap gap-2 items-end">
@@ -452,10 +455,10 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- MENU ---------------- */}
-        {tab === "menu" && <MenuManager locale={locale} />}
+        {tab === "menu" && <MenuManager locale={locale} role={me.role} />}
 
         {/* ---------------- GEO ---------------- */}
-        {tab === "geo" && (
+        {tab === "geo" && me.role !== "staff" && (
           <div className="space-y-6">
             <ResourceManager
               resource="governorates"
@@ -485,7 +488,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- PROMOS ---------------- */}
-        {tab === "promos" && (
+        {tab === "promos" && me.role !== "staff" && (
           <ResourceManager
             resource="promos"
             titleAr="أكواد الخصم والعروض"
@@ -505,7 +508,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- POPUPS ---------------- */}
-        {tab === "popups" && (
+        {tab === "popups" && me.role !== "staff" && (
           <ResourceManager
             resource="popups"
             titleAr="النوافذ الإعلانية المنبثقة"
@@ -525,7 +528,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- AGGREGATORS ---------------- */}
-        {tab === "aggregators" && (
+        {tab === "aggregators" && me.role !== "staff" && (
           <div className="space-y-4">
             <div className="card p-4 text-sm text-muted-c">
               {lbl(
@@ -549,7 +552,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- CUSTOMERS & BANS ---------------- */}
-        {tab === "customers" && (
+        {tab === "customers" && me.role !== "staff" && (
           <div className="space-y-6">
             <CustomersList locale={locale} />
             <ResourceManager
@@ -567,7 +570,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- STAFF ---------------- */}
-        {tab === "staff" && (
+        {tab === "staff" && me.role !== "staff" && (
           <ResourceManager
             resource="staff"
             titleAr="الموظفون والصلاحيات"
@@ -585,7 +588,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
         )}
 
         {/* ---------------- SETTINGS ---------------- */}
-        {tab === "settings" && <SettingsPanel locale={locale} />}
+        {tab === "settings" && me.role !== "staff" && <SettingsPanel locale={locale} />}
       </main>
     </div>
   );

@@ -6,9 +6,10 @@ import ResourceManager, { readFileAsDataUrl, type Row } from "./ResourceManager"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export default function MenuManager({ locale }: { locale: Locale }) {
+export default function MenuManager({ locale, role = "superadmin" }: { locale: Locale; role?: string }) {
   const ar = locale === "ar";
   const lbl = (a: string, e: string) => (ar ? a : e);
+  const isStaff = role === "staff";
 
   const [cats, setCats] = useState<Row[]>([]);
   const [items, setItems] = useState<Row[]>([]);
@@ -47,6 +48,7 @@ export default function MenuManager({ locale }: { locale: Locale }) {
   };
 
   const openItem = (item: Row | null) => {
+    if (isStaff) return; // منع الموظف من التعديل الكامل
     setError("");
     if (item) {
       setForm({ ...item });
@@ -58,6 +60,7 @@ export default function MenuManager({ locale }: { locale: Locale }) {
   };
 
   const saveItem = async () => {
+    if (isStaff) return;
     setBusy(true);
     try {
       const res = await fetch("/api/admin/items", {
@@ -77,13 +80,14 @@ export default function MenuManager({ locale }: { locale: Locale }) {
   };
 
   const deleteItem = async (item: Row) => {
+    if (isStaff) return;
     if (!confirm(lbl("حذف هذا الطبق نهائياً؟", "Delete this dish permanently?"))) return;
     await fetch(`/api/admin/items?id=${item.id}`, { method: "DELETE" });
     load();
   };
 
   const saveSize = async () => {
-    if (!sizeForm) return;
+    if (!sizeForm || isStaff) return;
     const res = await fetch("/api/admin/sizes", {
       method: sizeForm.__new ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -96,6 +100,7 @@ export default function MenuManager({ locale }: { locale: Locale }) {
   };
 
   const deleteSize = async (s: Row) => {
+    if (isStaff) return;
     if (!confirm(lbl("حذف هذا الحجم؟", "Delete this size?"))) return;
     await fetch(`/api/admin/sizes?id=${s.id}`, { method: "DELETE" });
     load();
@@ -106,32 +111,38 @@ export default function MenuManager({ locale }: { locale: Locale }) {
 
   return (
     <div className="space-y-6">
-      {/* Categories CRUD */}
-      <ResourceManager
-        resource="categories"
-        titleAr="أقسام القائمة"
-        titleEn="Menu Categories"
-        locale={locale}
-        onChanged={() => setCatSignal((s) => s + 1)}
-        fields={[
-          { key: "nameAr", ar: "الاسم (عربي)", en: "Name (AR)", type: "text", required: true },
-          { key: "nameEn", ar: "الاسم (إنجليزي)", en: "Name (EN)", type: "text", required: true },
-          { key: "parentId", ar: "القسم الرئيسي", en: "Parent category", type: "select", options: cats.map((c) => ({ value: c.id, label: ar ? c.nameAr : c.nameEn })), table: false },
-          { key: "sortOrder", ar: "الترتيب", en: "Sort order", type: "number" },
-          { key: "isActive", ar: "مفعل", en: "Active", type: "checkbox" },
-        ]}
-      />
+      {/* Categories CRUD - يظهر للمديرين فقط */}
+      {!isStaff && (
+        <ResourceManager
+          resource="categories"
+          titleAr="أقسام القائمة"
+          titleEn="Menu Categories"
+          locale={locale}
+          onChanged={() => setCatSignal((s) => s + 1)}
+          fields={[
+            { key: "nameAr", ar: "الاسم (عربي)", en: "Name (AR)", type: "text", required: true },
+            { key: "nameEn", ar: "الاسم (إنجليزي)", en: "Name (EN)", type: "text", required: true },
+            { key: "parentId", ar: "القسم الرئيسي", en: "Parent category", type: "select", options: cats.map((c) => ({ value: c.id, label: ar ? c.nameAr : c.nameEn })), table: false },
+            { key: "sortOrder", ar: "الترتيب", en: "Sort order", type: "number" },
+            { key: "isActive", ar: "مفعل", en: "Active", type: "checkbox" },
+          ]}
+        />
+      )}
 
       {/* Items */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="font-extrabold text-lg text-primary-c">{lbl("الأطباق والأصناف", "Dishes & Items")}</h3>
+          <h3 className="font-extrabold text-lg text-primary-c">
+            {isStaff ? lbl("توفر الأطباق والأصناف", "Dishes Availability") : lbl("الأطباق والأصناف", "Dishes & Items")}
+          </h3>
           <div className="flex gap-2 items-center">
             <select value={catFilter} onChange={(e) => setCatFilter(Number(e.target.value))} className="border border-black/15 rounded-lg px-3 py-2 text-sm bg-white">
               <option value={0}>{lbl("كل الأقسام", "All categories")}</option>
               {cats.map((c) => <option key={c.id} value={c.id}>{ar ? c.nameAr : c.nameEn}</option>)}
             </select>
-            <button onClick={() => openItem(null)} className="btn-accent px-4 py-2 rounded-lg text-sm font-bold">+ {lbl("إضافة طبق", "Add dish")}</button>
+            {!isStaff && (
+              <button onClick={() => openItem(null)} className="btn-accent px-4 py-2 rounded-lg text-sm font-bold">+ {lbl("إضافة طبق", "Add dish")}</button>
+            )}
           </div>
         </div>
 
@@ -159,8 +170,12 @@ export default function MenuManager({ locale }: { locale: Locale }) {
                       {item.isAvailable ? lbl("متاح", "Available") : lbl("غير متاح", "Unavailable")}
                     </button>
                     <button onClick={() => setSizeItem(item)} className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-600">{lbl("الأحجام", "Sizes")}</button>
-                    <button onClick={() => openItem(item)} className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">{lbl("تعديل", "Edit")}</button>
-                    <button onClick={() => deleteItem(item)} className="text-xs font-bold px-3 py-1 rounded-full bg-red-50 text-red-500">{lbl("حذف", "Delete")}</button>
+                    {!isStaff && (
+                      <>
+                        <button onClick={() => openItem(item)} className="text-xs font-bold px-3 py-1 rounded-full bg-black/5">{lbl("تعديل", "Edit")}</button>
+                        <button onClick={() => deleteItem(item)} className="text-xs font-bold px-3 py-1 rounded-full bg-red-50 text-red-500">{lbl("حذف", "Delete")}</button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -169,8 +184,8 @@ export default function MenuManager({ locale }: { locale: Locale }) {
         </div>
       </div>
 
-      {/* Item editor modal */}
-      {editItem && (
+      {/* Item editor modal (للمديرين فقط) */}
+      {!isStaff && editItem && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setEditItem(null)}>
           <div className="card w-full max-w-lg max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h4 className="font-extrabold text-lg mb-4 text-primary-c">{editItem.__new ? lbl("إضافة طبق", "Add dish") : lbl("تعديل طبق", "Edit dish")}</h4>
@@ -244,14 +259,31 @@ export default function MenuManager({ locale }: { locale: Locale }) {
                     {!s.isAvailable && <span className="text-xs text-red-500 font-bold"> · {lbl("غير متاح", "Unavailable")}</span>}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setSizeForm({ ...s })} className="text-blue-600 text-xs font-bold">{lbl("تعديل", "Edit")}</button>
-                    <button onClick={() => deleteSize(s)} className="text-red-500 text-xs font-bold">{lbl("حذف", "Delete")}</button>
+                    <button onClick={async () => {
+                      // للموظف: السماح بتغيير التوفر فقط للحجم بسرعة دون تعديل الاسم أو السعر
+                      if (isStaff) {
+                        await fetch("/api/admin/sizes", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ id: s.id, isAvailable: !s.isAvailable, nameAr: s.nameAr, nameEn: s.nameEn, price: s.price }),
+                        });
+                        load();
+                      } else {
+                        setSizeForm({ ...s });
+                      }
+                    }} className="text-blue-600 text-xs font-bold">
+                      {isStaff ? (s.isAvailable ? lbl("إيقاف (تغيير التوفر)", "Disable") : lbl("تفعيل (تغيير التوفر)", "Enable")) : lbl("تعديل", "Edit")}
+                    </button>
+                    {!isStaff && (
+                      <button onClick={() => deleteSize(s)} className="text-red-500 text-xs font-bold">{lbl("حذف", "Delete")}</button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
 
-            {sizeForm ? (
+            {/* تعديل الأحجام المتقدم متاح للمديرين فقط */}
+            {!isStaff && sizeForm ? (
               <div className="mt-4 border-t border-black/10 pt-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <input value={sizeForm.nameAr ?? ""} onChange={(e) => setSizeForm((p: Row | null) => ({ ...p!, nameAr: e.target.value }))} placeholder={lbl("الاسم (عربي) مثال: وسط", "Name (AR)")} className={input} />
@@ -270,7 +302,7 @@ export default function MenuManager({ locale }: { locale: Locale }) {
                   <button onClick={() => setSizeForm(null)} className="flex-1 py-2 rounded-lg font-bold bg-black/5 text-sm">{lbl("إلغاء", "Cancel")}</button>
                 </div>
               </div>
-            ) : (
+            ) : !isStaff && (
               <button onClick={() => setSizeForm({ __new: true, nameAr: "", nameEn: "", price: "", discountPercent: "0", stock: "", isAvailable: true })} className="btn-accent w-full mt-4 py-2.5 rounded-lg font-bold text-sm">
                 + {lbl("إضافة حجم جديد", "Add new size")}
               </button>
