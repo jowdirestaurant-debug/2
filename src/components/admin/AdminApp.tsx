@@ -480,13 +480,14 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
             />
             <ResourceManager
               resource="regions"
-              titleAr="المناطق"
-              titleEn="Regions"
+              titleAr="المناطق ورسوم التوصيل"
+              titleEn="Regions & Delivery Fees"
               locale={locale}
               fields={[
                 { key: "governorateId", ar: "المحافظة", en: "Governorate", type: "select", options: govs.map((g) => ({ value: g.id, label: ar ? g.nameAr : g.nameEn })), required: true },
                 { key: "nameAr", ar: "الاسم (عربي)", en: "Name (AR)", type: "text", required: true },
                 { key: "nameEn", ar: "الاسم (إنجليزي)", en: "Name (EN)", type: "text", required: true },
+                { key: "deliveryFee", ar: "رسوم التوصيل للمنطقة (د.ب) - اختياري", en: "Delivery Fee (BHD) - Optional", type: "number" },
                 { key: "isActive", ar: "مفعلة", en: "Active", type: "checkbox" },
               ]}
             />

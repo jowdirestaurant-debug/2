@@ -13,7 +13,7 @@ type Item = {
   isAvailable: boolean; sortOrder: number;
 };
 type Gov = { id: number; nameAr: string; nameEn: string };
-type Region = { id: number; governorateId: number; nameAr: string; nameEn: string };
+type Region = { id: number; governorateId: number; nameAr: string; nameEn: string; deliveryFee?: string | number | null };
 type Popup = { id: number; titleAr: string; titleEn: string; bodyAr: string | null; bodyEn: string | null; imageUrl: string | null };
 type CartLine = { itemId: number; sizeId: number | null; quantity: number };
 type Me = { id: number; fullName: string; email: string; phone: string; governorateId: number | null; regionId: number | null; addressDetails: string | null } | null;
@@ -202,7 +202,18 @@ export default function StoreFront(props: Props) {
   }, [cart, items, sizes, effectivePrice]);
 
   const subtotal = cartDetails.reduce((s, l) => s + l.total, 0);
-  const deliveryFeeBase = Number(settings.delivery_fee_base || "1.5");
+  // قراءة سعر التوصيل المخصص للمنطقة المختارة، وفي حال عدم وجوده يتم استخدام السعر الأساسي
+  const selectedRegionObj = useMemo(() => {
+    if (!regionId) return null;
+    return regions.find((r) => r.id === Number(regionId)) ?? null;
+  }, [regionId, regions]);
+
+  const deliveryFeeBase = useMemo(() => {
+    if (selectedRegionObj && selectedRegionObj.deliveryFee !== undefined && selectedRegionObj.deliveryFee !== null && selectedRegionObj.deliveryFee !== "") {
+      return Number(selectedRegionObj.deliveryFee);
+    }
+    return Number(settings.delivery_fee_base || "1.5");
+  }, [selectedRegionObj, settings.delivery_fee_base]);
   const shareEnabled = settings.delivery_share_enabled === "1";
   const customerShare = shareEnabled ? Number(settings.delivery_customer_share_percent || "50") : 100;
   const deliveryFeeCustomer = orderType === "delivery" ? (deliveryFeeBase * customerShare) / 100 : 0;
