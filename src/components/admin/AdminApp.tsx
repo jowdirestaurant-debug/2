@@ -310,6 +310,12 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
                       📍 {selectedAdminOrder.addressDetails}
                     </div>
                   )}
+                  {selectedAdminOrder.notes && (
+                    <div className="mt-3 pt-2 border-t border-black/5 bg-amber-50/50 p-2.5 rounded-lg text-amber-900">
+                      <span className="font-bold">{ar ? "ملاحظات الزبون: " : "Customer Notes: "}</span>
+                      <span>{selectedAdminOrder.notes}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
