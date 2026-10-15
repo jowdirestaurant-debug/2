@@ -46,7 +46,13 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
   const [selectedAdminOrder, setSelectedAdminOrder] = useState<Row | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alarmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const periodicAlarmRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  // Ref لمتابعة حالة الطلبات بدون إعادة إنشاء المتايمر وتصفيره
+  const ordersRef = useRef(orders);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
   const [govs, setGovs] = useState<Row[]>([]);
   const [regs, setRegs] = useState<Row[]>([]);
 
@@ -111,6 +117,7 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
     } catch {}
   }, []);
 
+  // التنبيه المستمر للطلبات الجديدة بانتظار التأكيد
   useEffect(() => {
     if (alarmOn) {
       beep();
@@ -124,22 +131,21 @@ export default function AdminApp({ locale, initialStaff }: { locale: Locale; ini
     };
   }, [alarmOn, beep]);
 
-  // تنبيه دوري كل 5 دقائق في حال وجود طلبات غير مكتملة أو ملغاة
+  // التنبيه الدوري كل 5 دقائق للطلبات النشطة (التي ليست "مكتمل" ولا "ملغي")
   useEffect(() => {
     if (!me) return;
-    periodicAlarmRef.current = setInterval(() => {
-      const hasPendingOrActive = orders.some(
+
+    const periodicInterval = setInterval(() => {
+      const hasPendingOrActive = ordersRef.current.some(
         (o) => o.status !== "completed" && o.status !== "cancelled"
       );
       if (hasPendingOrActive) {
         beep();
       }
-    }, 5 * 60 * 1000);
+    }, 5 * 60 * 1000); // 5 دقائق
 
-    return () => {
-      if (periodicAlarmRef.current) clearInterval(periodicAlarmRef.current);
-    };
-  }, [me, orders, beep]);
+    return () => clearInterval(periodicInterval);
+  }, [me, beep]);
 
   const loadOrders = useCallback(async () => {
     const res = await fetch("/api/admin/orders");
