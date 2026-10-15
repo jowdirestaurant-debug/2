@@ -114,24 +114,38 @@ export default function SettingsPanel({ locale }: { locale: Locale }) {
         </div>
       </div>
 
-      {/* Working Hours & Store Status */}
+      {/* Working Hours & Store Status (Split Shifts) */}
       <div className="card p-5">
-        <h3 className="font-extrabold text-lg text-primary-c mb-4">{lbl("أوقات العمل وحالة المطعم", "Working Hours & Store Status")}</h3>
-        <div className="grid md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label className="text-xs font-bold text-muted-c block mb-1">{lbl("وقت الفتح", "Opening Time")}</label>
-            <input type="time" value={settings.restaurant_open_time ?? "08:00"} onChange={(e) => set("restaurant_open_time", e.target.value)} className={input} dir="ltr" />
+        <h3 className="font-extrabold text-lg text-primary-c mb-4">{lbl("أوقات العمل (نظام الفترات) وحالة المطعم", "Working Hours (Split Shifts) & Status")}</h3>
+        <div className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-muted-c block mb-1">{lbl("الفترة الأولى - الفتح", "Shift 1 - Open")}</label>
+              <input type="time" value={settings.restaurant_open_time_1 ?? "08:00"} onChange={(e) => set("restaurant_open_time_1", e.target.value)} className={input} dir="ltr" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-muted-c block mb-1">{lbl("الفترة الأولى - الإغلاق", "Shift 1 - Close")}</label>
+              <input type="time" value={settings.restaurant_close_time_1 ?? "15:00"} onChange={(e) => set("restaurant_close_time_1", e.target.value)} className={input} dir="ltr" />
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-bold text-muted-c block mb-1">{lbl("وقت الإغلاق", "Closing Time")}</label>
-            <input type="time" value={settings.restaurant_close_time ?? "23:59"} onChange={(e) => set("restaurant_close_time", e.target.value)} className={input} dir="ltr" />
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-muted-c block mb-1">{lbl("الفترة الثانية - الفتح", "Shift 2 - Open")}</label>
+              <input type="time" value={settings.restaurant_open_time_2 ?? "18:00"} onChange={(e) => set("restaurant_open_time_2", e.target.value)} className={input} dir="ltr" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-muted-c block mb-1">{lbl("الفترة الثانية - الإغلاق", "Shift 2 - Close")}</label>
+              <input type="time" value={settings.restaurant_close_time_2 ?? "00:00"} onChange={(e) => set("restaurant_close_time_2", e.target.value)} className={input} dir="ltr" />
+            </div>
           </div>
+
           <div>
             <button 
               onClick={() => set("restaurant_manual_override", settings.restaurant_manual_override === "closed" ? "open" : "closed")} 
               className={`w-full py-2.5 rounded-lg text-sm font-bold ${settings.restaurant_manual_override !== "closed" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}
             >
-              {settings.restaurant_manual_override !== "closed" ? lbl("حالة المطعم: مفتوح تلقائياً/يدوياً", "Status: Open") : lbl("حالة المطعم: مغلق يدوياً", "Status: Manually Closed")}
+              {settings.restaurant_manual_override !== "closed" ? lbl("حالة المطعم: يعمل حسب الفترات أعلاه", "Status: Operating normally") : lbl("حالة المطعم: مغلق يدوياً", "Status: Manually Closed")}
             </button>
           </div>
         </div>

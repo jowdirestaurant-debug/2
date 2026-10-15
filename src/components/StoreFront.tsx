@@ -625,8 +625,6 @@ export default function StoreFront(props: Props) {
           ) : (
             <button 
               onClick={() => {
-                const openTime = settings.restaurant_open_time || "08:00";
-                const closeTime = settings.restaurant_close_time || "23:59";
                 const manualOverride = settings.restaurant_manual_override;
 
                 if (manualOverride === "closed") {
@@ -634,14 +632,33 @@ export default function StoreFront(props: Props) {
                   return;
                 }
 
+                const open1 = settings.restaurant_open_time_1 || "08:00";
+                const close1 = settings.restaurant_close_time_1 || "15:00";
+                const open2 = settings.restaurant_open_time_2 || "18:00";
+                const close2 = settings.restaurant_close_time_2 || "23:59";
+
                 const now = new Date();
                 const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                 
-                if (openTime <= closeTime) {
-                  if (currentTime < openTime || currentTime > closeTime) {
-                    setErrorMsg(ar ? `عذراً، المطعم مغلق حالياً. أوقات العمل من ${openTime} إلى ${closeTime}` : `Sorry, the restaurant is closed. Working hours: ${openTime} - ${closeTime}`);
-                    return;
+                // الدالة المساعدة لمراجعة نطاق الوقت
+                const inShift = (nowTime: string, start: string, end: string) => {
+                  if (start <= end) {
+                    return nowTime >= start && nowTime <= end;
                   }
+                  // في حال كانت الفترة تتجاوز منتصف الليل (مثل من 18:00 إلى 02:00)
+                  return nowTime >= start || nowTime <= end;
+                };
+
+                const isShift1Open = inShift(currentTime, open1, close1);
+                const isShift2Open = inShift(currentTime, open2, close2);
+
+                if (!isShift1Open && !isShift2Open) {
+                  setErrorMsg(
+                    ar 
+                      ? `عذراً، المطعم مغلق حالياً. أوقات العمل: (الفترة الأولى: ${open1} - ${close1}) | (الفترة الثانية: ${open2} - ${close2})` 
+                      : `Sorry, the restaurant is closed. Hours: (${open1} - ${close1}) & (${open2} - ${close2})`
+                  );
+                  return;
                 }
 
                 setErrorMsg("");
