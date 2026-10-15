@@ -634,30 +634,45 @@ export default function StoreFront(props: Props) {
 
                 const open1 = settings.restaurant_open_time_1 || "08:00";
                 const close1 = settings.restaurant_close_time_1 || "15:00";
+                const isShift2Active = settings.restaurant_shift2_enabled === "1";
                 const open2 = settings.restaurant_open_time_2 || "18:00";
-                const close2 = settings.restaurant_close_time_2 || "23:59";
+                const close2 = settings.restaurant_close_time_2 || "00:00";
 
                 const now = new Date();
-                const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                
-                // الدالة المساعدة لمراجعة نطاق الوقت
-                const inShift = (nowTime: string, start: string, end: string) => {
-                  if (start <= end) {
-                    return nowTime >= start && nowTime <= end;
-                  }
-                  // في حال كانت الفترة تتجاوز منتصف الليل (مثل من 18:00 إلى 02:00)
-                  return nowTime >= start || nowTime <= end;
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+                const toMins = (tStr: string) => {
+                  const [h, m] = tStr.split(":").map(Number);
+                  if (h === 0 && m === 0) return 1440;
+                  return h * 60 + m;
                 };
 
-                const isShift1Open = inShift(currentTime, open1, close1);
-                const isShift2Open = inShift(currentTime, open2, close2);
+                const inShift = (nowMins: number, startStr: string, endStr: string) => {
+                  const startMins = toMins(startStr);
+                  let endMins = toMins(endStr);
+                  if (endMins < startMins) {
+                    return nowMins >= startMins || nowMins <= endMins;
+                  }
+                  return nowMins >= startMins && nowMins <= endMins;
+                };
+
+                const isShift1Open = inShift(currentMinutes, open1, close1);
+                const isShift2Open = isShift2Active ? inShift(currentMinutes, open2, close2) : false;
 
                 if (!isShift1Open && !isShift2Open) {
-                  setErrorMsg(
-                    ar 
-                      ? `عذراً، المطعم مغلق حالياً. أوقات العمل: (الفترة الأولى: ${open1} - ${close1}) | (الفترة الثانية: ${open2} - ${close2})` 
-                      : `Sorry, the restaurant is closed. Hours: (${open1} - ${close1}) & (${open2} - ${close2})`
-                  );
+                  if (isShift2Active) {
+                    setErrorMsg(
+                      ar 
+                        ? `عذراً، المطعم مغلق حالياً. أوقات العمل: (الفترة الأولى: من ${open1} إلى ${close1}) - (الفترة الثانية: من ${open2} إلى ${close2})` 
+                        : `Sorry, restaurant closed. Hours: (${open1} to ${close1}) & (${open2} to ${close2})`
+                    );
+                  } else {
+                    setErrorMsg(
+                      ar 
+                        ? `عذراً، المطعم مغلق حالياً. أوقات العمل الرسمية: من ${open1} إلى ${close1}` 
+                        : `Sorry, restaurant closed. Working hours: from ${open1} to ${close1}`
+                    );
+                  }
                   return;
                 }
 
