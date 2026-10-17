@@ -324,9 +324,9 @@ export default function StoreFront(props: Props) {
   };
 
   const loadMyOrders = async () => {
-    await fetchOrdersSilent();
-    setShowOrders(true);
-  };
+  setShowOrders(true);
+  await fetchOrdersSilent();
+};
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -368,11 +368,8 @@ export default function StoreFront(props: Props) {
             </button>
             <button 
   type="button"
-  onClick={(e) => {
-    e.stopPropagation();
-    loadMyOrders();
-  }} 
-  className="relative z-50 px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c cursor-pointer pointer-events-auto"
+  onClick={() => loadMyOrders()} 
+  className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c transition cursor-pointer"
 >
   {t.myOrders}
 </button>
@@ -773,6 +770,73 @@ export default function StoreFront(props: Props) {
           </div>
         );
       })}
+
+    {/* ---------- Orders Modal ---------- */}
+      {showOrders && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowOrders(false); setSelectedOrder(null); }}>
+          <div className="bg-surface w-full max-w-2xl max-h-[85vh] rounded-2xl p-6 overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-4 border-b border-black/10">
+              <h3 className="text-xl font-extrabold text-primary-c">{t.myOrders}</h3>
+              <button onClick={() => { setShowOrders(false); setSelectedOrder(null); }} className="text-muted-c hover:text-red-500 text-xl font-bold">✕</button>
+            </div>
+
+            {selectedOrder ? (
+              <div className="mt-4">
+                <button onClick={() => setSelectedOrder(null)} className="text-sm font-bold text-accent-c hover:underline mb-4 flex items-center gap-1">
+                  ← {ar ? "العودة لقائمة الطلبات" : "Back to orders list"}
+                </button>
+                <div className="border border-black/10 rounded-xl p-4 bg-black/5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-extrabold text-lg text-primary-c">{selectedOrder.orderNumber}</div>
+                      <div className="text-xs text-muted-c mt-1">{new Date(selectedOrder.createdAt).toLocaleString()}</div>
+                    </div>
+                    <span className="bg-primary-c/10 text-primary-c text-xs font-bold px-3 py-1 rounded-full">
+                      {selectedOrder.status}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-2 border-t border-black/10 pt-3">
+                    {selectedOrder.items?.map((it) => (
+                      <div key={it.id} className="flex justify-between text-sm">
+                        <span>{ar ? it.nameAr : it.nameEn} {it.sizeNameAr && `(${ar ? it.sizeNameAr : it.sizeNameEn})`} × {it.quantity}</span>
+                        <span className="font-bold">{it.lineTotal} {currency}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-black/10 flex justify-between font-extrabold text-lg text-accent-c">
+                    <span>{t.total}</span>
+                    <span>{selectedOrder.total} {currency}</span>
+                  </div>
+                </div>
+              </div>
+            ) : myOrders.length === 0 ? (
+              <div className="text-center py-12 text-muted-c">
+                <div className="text-5xl mb-3">📦</div>
+                <p>{ar ? "لا توجد طلبات سابقة" : "No orders found"}</p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {myOrders.map((ord) => (
+                  <div 
+                    key={ord.id} 
+                    onClick={() => setSelectedOrder(ord)}
+                    className="border border-black/10 rounded-xl p-4 hover:border-primary-c cursor-pointer transition flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-bold text-primary-c">{ord.orderNumber}</div>
+                      <div className="text-xs text-muted-c mt-1">{new Date(ord.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <div className="text-end">
+                      <div className="font-extrabold text-accent-c">{ord.total} {currency}</div>
+                      <div className="text-xs text-muted-c">{ord.status}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
