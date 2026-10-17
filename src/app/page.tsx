@@ -21,7 +21,7 @@ export default async function HomePage() {
   const store = await cookies();
   const locale = normalizeLocale(store.get("locale")?.value);
 
-  const [settings, content, cats, items, sizes, govs, regs, allPopups] = await Promise.all([
+  const [settings, content, cats, items, sizes, govs, regs, activePopups] = await Promise.all([
     getSettings(),
     getContent(),
     db.select().from(categories).where(eq(categories.isActive, true)).orderBy(asc(categories.sortOrder), asc(categories.id)),
@@ -29,13 +29,8 @@ export default async function HomePage() {
     db.select().from(itemSizes).orderBy(asc(itemSizes.sortOrder), asc(itemSizes.id)),
     db.select().from(governorates).where(eq(governorates.isActive, true)).orderBy(asc(governorates.id)),
     db.select().from(regions).where(eq(regions.isActive, true)).orderBy(asc(regions.id)),
-    db.select().from(popups).where(eq(popups.isActive, true)),
+    db.select().from(popups).catch(() => []),
   ]);
-
-  const now = new Date();
-  const activePopups = allPopups.filter(
-    (p) => (!p.startsAt || p.startsAt <= now) && (!p.endsAt || p.endsAt >= now)
-  );
 
   return (
     <StoreFront
