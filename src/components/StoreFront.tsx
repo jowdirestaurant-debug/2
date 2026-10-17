@@ -174,11 +174,10 @@ export default function StoreFront(props: Props) {
 
   // Polling للتحقق من تحديثات حالة الطلب كل 10 ثوانٍ
   useEffect(() => {
-    if (!me) return;
     fetchOrdersSilent();
     const interval = setInterval(fetchOrdersSilent, 10000);
     return () => clearInterval(interval);
-  }, [me, fetchOrdersSilent]);
+  }, [fetchOrdersSilent]);
 
   const switchLocale = async () => {
     await fetch("/api/auth/locale", {
