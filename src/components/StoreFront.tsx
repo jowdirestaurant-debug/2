@@ -95,29 +95,54 @@ export default function StoreFront(props: Props) {
   };
 
   const fetchOrdersSilent = useCallback(async () => {
-    if (!me) return;
     try {
-      const res = await fetch("/api/orders");
-      const d = await res.json();
-      if (d.orders && Array.isArray(d.orders)) {
-        let statusChanged = false;
-        d.orders.forEach((newOrder: MyOrder) => {
-          const oldStatus = prevOrdersRef.current.get(newOrder.id);
-          if (oldStatus && oldStatus !== newOrder.status) {
-            statusChanged = true;
-            setAlertingOrderId(newOrder.id);
-            playAlertSound();
-            setTimeout(() => {
-              setAlertingOrderId(null);
-            }, 2000); // تنبيه لمدة ثانيتين
-          }
-          prevOrdersRef.current.set(newOrder.id, newOrder.status);
-        });
-        setMyOrders(d.orders);
-        if (selectedOrder) {
-          const updatedSelected = d.orders.find((o: MyOrder) => o.id === selectedOrder.id);
-          if (updatedSelected) setSelectedOrder(updatedSelected);
+      let ordersList: MyOrder[] = [];
+
+      if (me) {
+        const res = await fetch("/api/orders");
+        const d = await res.json();
+        if (d.orders && Array.isArray(d.orders)) {
+          ordersList = d.orders;
         }
+      } else {
+        const savedNumbersRaw = localStorage.getItem("jowdi_guest_orders");
+        const savedNumbers: string[] = savedNumbersRaw ? JSON.parse(savedNumbersRaw) : [];
+
+        if (savedNumbers.length > 0) {
+          const fetchedOrders = await Promise.all(
+            savedNumbers.map(async (num) => {
+              try {
+                const res = await fetch(`/api/orders?orderNumber=${num}`);
+                const d = await res.json();
+                return d.ok && d.order ? d.order : null;
+              } catch {
+                return null;
+              }
+            })
+          );
+          ordersList = fetchedOrders.filter((o): o is MyOrder => o !== null);
+        }
+      }
+
+      let statusChanged = false;
+      ordersList.forEach((newOrder: MyOrder) => {
+        const oldStatus = prevOrdersRef.current.get(newOrder.id);
+        if (oldStatus && oldStatus !== newOrder.status) {
+          statusChanged = true;
+          setAlertingOrderId(newOrder.id);
+          playAlertSound();
+          setTimeout(() => {
+            setAlertingOrderId(null);
+          }, 2000);
+        }
+        prevOrdersRef.current.set(newOrder.id, newOrder.status);
+      });
+
+      setMyOrders(ordersList);
+
+      if (selectedOrder) {
+        const updatedSelected = ordersList.find((o: MyOrder) => o.id === selectedOrder.id);
+        if (updatedSelected) setSelectedOrder(updatedSelected);
       }
     } catch {}
   }, [me, selectedOrder]);
@@ -149,11 +174,10 @@ export default function StoreFront(props: Props) {
 
   // Polling للتحقق من تحديثات حالة الطلب كل 10 ثوانٍ
   useEffect(() => {
-    if (!me) return;
     fetchOrdersSilent();
     const interval = setInterval(fetchOrdersSilent, 10000);
     return () => clearInterval(interval);
-  }, [me, fetchOrdersSilent]);
+  }, [fetchOrdersSilent]);
 
   const switchLocale = async () => {
     await fetch("/api/auth/locale", {
@@ -275,6 +299,14 @@ export default function StoreFront(props: Props) {
       const d = await res.json();
       if (d.ok) {
         setOrderDone({ orderNumber: d.orderNumber, total: d.total });
+        if (!me) {
+          try {
+            const currentGuestOrdersRaw = localStorage.getItem("jowdi_guest_orders");
+            const currentGuestOrders: string[] = currentGuestOrdersRaw ? JSON.parse(currentGuestOrdersRaw) : [];
+            currentGuestOrders.unshift(d.orderNumber);
+            localStorage.setItem("jowdi_guest_orders", JSON.stringify(currentGuestOrders));
+          } catch {}
+        }
         setCart([]);
         setPromoResult(null);
         setPromo("");
@@ -334,11 +366,9 @@ export default function StoreFront(props: Props) {
             <button onClick={switchLocale} className="px-3 py-1.5 rounded-full border border-primary-c text-primary-c text-sm font-bold hover:bg-primary-c hover:text-white transition">
               {t.language}
             </button>
+            <button onClick={loadMyOrders} className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.myOrders}</button>
             {me ? (
-              <div className="flex items-center gap-1">
-                <button onClick={loadMyOrders} className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.myOrders}</button>
-                <button onClick={logout} className="px-3 py-1.5 rounded-full text-sm text-muted-c hover:text-red-500">{t.logout}</button>
-              </div>
+              <button onClick={logout} className="px-3 py-1.5 rounded-full text-sm text-muted-c hover:text-red-500">{t.logout}</button>
             ) : (
               <a href="/login" className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.login}</a>
             )}

@@ -310,6 +310,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const orderNumber = searchParams.get("orderNumber");
 
+  // التعديل: إرجاع تفاصيل الطلب الكاملة بواسطة رقم الطلب لجميع المستخدمين (مسجلين وغير مسجلين)
   if (orderNumber) {
     const [order] = await db
       .select()
@@ -321,7 +322,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "order_not_found" }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, status: order.status, orderNumber: order.orderNumber });
+    const items = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, order.id));
+
+    return NextResponse.json({
+      ok: true,
+      order: {
+        ...order,
+        items,
+      },
+    });
   }
 
   const user = await getSessionUser();
