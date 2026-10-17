@@ -300,6 +300,14 @@ export default function StoreFront(props: Props) {
       const d = await res.json();
       if (d.ok) {
         setOrderDone({ orderNumber: d.orderNumber, total: d.total });
+        if (!me) {
+          try {
+            const currentGuestOrdersRaw = localStorage.getItem("jowdi_guest_orders");
+            const currentGuestOrders: string[] = currentGuestOrdersRaw ? JSON.parse(currentGuestOrdersRaw) : [];
+            currentGuestOrders.unshift(d.orderNumber);
+            localStorage.setItem("jowdi_guest_orders", JSON.stringify(currentGuestOrders));
+          } catch {}
+        }
         setCart([]);
         setPromoResult(null);
         setPromo("");
