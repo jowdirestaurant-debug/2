@@ -366,7 +366,16 @@ export default function StoreFront(props: Props) {
             <button onClick={switchLocale} className="px-3 py-1.5 rounded-full border border-primary-c text-primary-c text-sm font-bold hover:bg-primary-c hover:text-white transition">
               {t.language}
             </button>
-            <button onClick={loadMyOrders} className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.myOrders}</button>
+            <button 
+  type="button"
+  onClick={(e) => {
+    e.stopPropagation();
+    loadMyOrders();
+  }} 
+  className="relative z-50 px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c cursor-pointer pointer-events-auto"
+>
+  {t.myOrders}
+</button>
             {me ? (
               <button onClick={logout} className="px-3 py-1.5 rounded-full text-sm text-muted-c hover:text-red-500">{t.logout}</button>
             ) : (
