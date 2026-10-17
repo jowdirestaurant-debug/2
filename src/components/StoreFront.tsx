@@ -95,54 +95,29 @@ export default function StoreFront(props: Props) {
   };
 
   const fetchOrdersSilent = useCallback(async () => {
+    if (!me) return;
     try {
-      let ordersList: MyOrder[] = [];
-
-      if (me) {
-        const res = await fetch("/api/orders");
-        const d = await res.json();
-        if (d.orders && Array.isArray(d.orders)) {
-          ordersList = d.orders;
+      const res = await fetch("/api/orders");
+      const d = await res.json();
+      if (d.orders && Array.isArray(d.orders)) {
+        let statusChanged = false;
+        d.orders.forEach((newOrder: MyOrder) => {
+          const oldStatus = prevOrdersRef.current.get(newOrder.id);
+          if (oldStatus && oldStatus !== newOrder.status) {
+            statusChanged = true;
+            setAlertingOrderId(newOrder.id);
+            playAlertSound();
+            setTimeout(() => {
+              setAlertingOrderId(null);
+            }, 2000); // تنبيه لمدة ثانيتين
+          }
+          prevOrdersRef.current.set(newOrder.id, newOrder.status);
+        });
+        setMyOrders(d.orders);
+        if (selectedOrder) {
+          const updatedSelected = d.orders.find((o: MyOrder) => o.id === selectedOrder.id);
+          if (updatedSelected) setSelectedOrder(updatedSelected);
         }
-      } else {
-        const savedNumbersRaw = localStorage.getItem("jowdi_guest_orders");
-        const savedNumbers: string[] = savedNumbersRaw ? JSON.parse(savedNumbersRaw) : [];
-
-        if (savedNumbers.length > 0) {
-          const fetchedOrders = await Promise.all(
-            savedNumbers.map(async (num) => {
-              try {
-                const res = await fetch(`/api/orders?orderNumber=${num}`);
-                const d = await res.json();
-                return d.ok && d.order ? d.order : null;
-              } catch {
-                return null;
-              }
-            })
-          );
-          ordersList = fetchedOrders.filter((o): o is MyOrder => o !== null);
-        }
-      }
-
-      let statusChanged = false;
-      ordersList.forEach((newOrder: MyOrder) => {
-        const oldStatus = prevOrdersRef.current.get(newOrder.id);
-        if (oldStatus && oldStatus !== newOrder.status) {
-          statusChanged = true;
-          setAlertingOrderId(newOrder.id);
-          playAlertSound();
-          setTimeout(() => {
-            setAlertingOrderId(null);
-          }, 2000);
-        }
-        prevOrdersRef.current.set(newOrder.id, newOrder.status);
-      });
-
-      setMyOrders(ordersList);
-
-      if (selectedOrder) {
-        const updatedSelected = ordersList.find((o: MyOrder) => o.id === selectedOrder.id);
-        if (updatedSelected) setSelectedOrder(updatedSelected);
       }
     } catch {}
   }, [me, selectedOrder]);
@@ -174,10 +149,11 @@ export default function StoreFront(props: Props) {
 
   // Polling للتحقق من تحديثات حالة الطلب كل 10 ثوانٍ
   useEffect(() => {
+    if (!me) return;
     fetchOrdersSilent();
     const interval = setInterval(fetchOrdersSilent, 10000);
     return () => clearInterval(interval);
-  }, [fetchOrdersSilent]);
+  }, [me, fetchOrdersSilent]);
 
   const switchLocale = async () => {
     await fetch("/api/auth/locale", {
@@ -299,14 +275,6 @@ export default function StoreFront(props: Props) {
       const d = await res.json();
       if (d.ok) {
         setOrderDone({ orderNumber: d.orderNumber, total: d.total });
-        if (!me) {
-          try {
-            const currentGuestOrdersRaw = localStorage.getItem("jowdi_guest_orders");
-            const currentGuestOrders: string[] = currentGuestOrdersRaw ? JSON.parse(currentGuestOrdersRaw) : [];
-            currentGuestOrders.unshift(d.orderNumber);
-            localStorage.setItem("jowdi_guest_orders", JSON.stringify(currentGuestOrders));
-          } catch {}
-        }
         setCart([]);
         setPromoResult(null);
         setPromo("");
@@ -324,9 +292,9 @@ export default function StoreFront(props: Props) {
   };
 
   const loadMyOrders = async () => {
-  setShowOrders(true);
-  await fetchOrdersSilent();
-};
+    await fetchOrdersSilent();
+    setShowOrders(true);
+  };
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -366,15 +334,11 @@ export default function StoreFront(props: Props) {
             <button onClick={switchLocale} className="px-3 py-1.5 rounded-full border border-primary-c text-primary-c text-sm font-bold hover:bg-primary-c hover:text-white transition">
               {t.language}
             </button>
-            <button 
-  type="button"
-  onClick={() => loadMyOrders()} 
-  className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c transition cursor-pointer"
->
-  {t.myOrders}
-</button>
             {me ? (
-              <button onClick={logout} className="px-3 py-1.5 rounded-full text-sm text-muted-c hover:text-red-500">{t.logout}</button>
+              <div className="flex items-center gap-1">
+                <button onClick={loadMyOrders} className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.myOrders}</button>
+                <button onClick={logout} className="px-3 py-1.5 rounded-full text-sm text-muted-c hover:text-red-500">{t.logout}</button>
+              </div>
             ) : (
               <a href="/login" className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.login}</a>
             )}
@@ -738,8 +702,8 @@ export default function StoreFront(props: Props) {
   )}
   </>
 )}
-</div>
-</div>
+<</div>
+  </div>
 )}
 
       {/* ---------- Popups Modal ---------- */}
@@ -771,72 +735,6 @@ export default function StoreFront(props: Props) {
         );
       })}
 
-    {/* ---------- Orders Modal ---------- */}
-      {showOrders && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowOrders(false); setSelectedOrder(null); }}>
-          <div className="bg-surface w-full max-w-2xl max-h-[85vh] rounded-2xl p-6 overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center pb-4 border-b border-black/10">
-              <h3 className="text-xl font-extrabold text-primary-c">{t.myOrders}</h3>
-              <button onClick={() => { setShowOrders(false); setSelectedOrder(null); }} className="text-muted-c hover:text-red-500 text-xl font-bold">✕</button>
-            </div>
-
-            {selectedOrder ? (
-              <div className="mt-4">
-                <button onClick={() => setSelectedOrder(null)} className="text-sm font-bold text-accent-c hover:underline mb-4 flex items-center gap-1">
-                  ← {ar ? "العودة لقائمة الطلبات" : "Back to orders list"}
-                </button>
-                <div className="border border-black/10 rounded-xl p-4 bg-black/5">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-extrabold text-lg text-primary-c">{selectedOrder.orderNumber}</div>
-                      <div className="text-xs text-muted-c mt-1">{new Date(selectedOrder.createdAt).toLocaleString()}</div>
-                    </div>
-                    <span className="bg-primary-c/10 text-primary-c text-xs font-bold px-3 py-1 rounded-full">
-                      {selectedOrder.status}
-                    </span>
-                  </div>
-                  <div className="mt-4 space-y-2 border-t border-black/10 pt-3">
-                    {selectedOrder.items?.map((it) => (
-                      <div key={it.id} className="flex justify-between text-sm">
-                        <span>{ar ? it.nameAr : it.nameEn} {it.sizeNameAr && `(${ar ? it.sizeNameAr : it.sizeNameEn})`} × {it.quantity}</span>
-                        <span className="font-bold">{it.lineTotal} {currency}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-black/10 flex justify-between font-extrabold text-lg text-accent-c">
-                    <span>{t.total}</span>
-                    <span>{selectedOrder.total} {currency}</span>
-                  </div>
-                </div>
-              </div>
-            ) : myOrders.length === 0 ? (
-              <div className="text-center py-12 text-muted-c">
-                <div className="text-5xl mb-3">📦</div>
-                <p>{ar ? "لا توجد طلبات سابقة" : "No orders found"}</p>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {myOrders.map((ord) => (
-                  <div 
-                    key={ord.id} 
-                    onClick={() => setSelectedOrder(ord)}
-                    className="border border-black/10 rounded-xl p-4 hover:border-primary-c cursor-pointer transition flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-bold text-primary-c">{ord.orderNumber}</div>
-                      <div className="text-xs text-muted-c mt-1">{new Date(ord.createdAt).toLocaleDateString()}</div>
-                    </div>
-                    <div className="text-end">
-                      <div className="font-extrabold text-accent-c">{ord.total} {currency}</div>
-                      <div className="text-xs text-muted-c">{ord.status}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

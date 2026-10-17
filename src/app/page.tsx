@@ -17,25 +17,25 @@ import StoreFront from "@/components/StoreFront";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  try {
-    await ensureSeeded();
-  } catch (e) {
-    console.error("Seed error:", e);
-  }
-
+  await ensureSeeded();
   const store = await cookies();
   const locale = normalizeLocale(store.get("locale")?.value);
 
-  // جلب البيانات مع حماية شاملة ضد أي خطأ في الجداول
-  const settings = await getSettings().catch(() => ({}));
-  const content = await getContent().catch(() => ({}));
+  const [settings, content, cats, items, sizes, govs, regs, allPopups] = await Promise.all([
+    getSettings(),
+    getContent(),
+    db.select().from(categories).where(eq(categories.isActive, true)).orderBy(asc(categories.sortOrder), asc(categories.id)),
+    db.select().from(menuItems).orderBy(asc(menuItems.sortOrder), asc(menuItems.id)),
+    db.select().from(itemSizes).orderBy(asc(itemSizes.sortOrder), asc(itemSizes.id)),
+    db.select().from(governorates).where(eq(governorates.isActive, true)).orderBy(asc(governorates.id)),
+    db.select().from(regions).where(eq(regions.isActive, true)).orderBy(asc(regions.id)),
+    db.select().from(popups).where(eq(popups.isActive, true)),
+  ]);
 
-  const cats = await db.select().from(categories).where(eq(categories.isActive, true)).orderBy(asc(categories.sortOrder), asc(categories.id)).catch(() => []);
-  const items = await db.select().from(menuItems).orderBy(asc(menuItems.sortOrder), asc(menuItems.id)).catch(() => []);
-  const sizes = await db.select().from(itemSizes).orderBy(asc(itemSizes.sortOrder), asc(itemSizes.id)).catch(() => []);
-  const govs = await db.select().from(governorates).where(eq(governorates.isActive, true)).orderBy(asc(governorates.id)).catch(() => []);
-  const regs = await db.select().from(regions).where(eq(regions.isActive, true)).orderBy(asc(regions.id)).catch(() => []);
-  const activePopups = await db.select().from(popups).where(eq(popups.isActive, true)).catch(() => []);
+  const now = new Date();
+  const activePopups = allPopups.filter(
+    (p) => (!p.startsAt || p.startsAt <= now) && (!p.endsAt || p.endsAt >= now)
+  );
 
   return (
     <StoreFront
@@ -43,14 +43,14 @@ export default async function HomePage() {
       settings={settings}
       content={content}
       categories={cats}
-      items={items.map((i: any) => ({
+      items={items.map((i) => ({
         ...i,
-        createdAt: i.createdAt ? new Date(i.createdAt).toISOString() : new Date().toISOString(),
+        createdAt: i.createdAt.toISOString(),
       }))}
       sizes={sizes}
       governorates={govs}
       regions={regs}
-      popups={activePopups.map((p: any) => ({
+      popups={activePopups.map((p) => ({
         id: p.id,
         titleAr: p.titleAr,
         titleEn: p.titleEn,
