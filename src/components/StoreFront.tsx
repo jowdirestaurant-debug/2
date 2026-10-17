@@ -837,7 +837,6 @@ export default function StoreFront(props: Props) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
