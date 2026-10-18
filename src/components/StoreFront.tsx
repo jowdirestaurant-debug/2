@@ -347,39 +347,43 @@ export default function StoreFront(props: Props) {
     <div className="min-h-screen">
       {/* ---------- Header ---------- */}
       <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur border-b border-black/5 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo} alt={t.brand} className="h-11 w-auto object-contain" />
-            <div>
+            <img src={logo} alt={t.brand} className="h-10 w-auto object-contain" />
+            {/* إخفاء الاسم النصي في الجوال وإظهاره في الشاشات المتوسطة فأكبر */}
+            <div className="hidden sm:block">
               <div className="font-extrabold text-primary-c leading-5">{t.brand}</div>
               <div className="text-xs text-muted-c">{ar ? "Jowdi Restaurant" : "مطعم الجودي"}</div>
             </div>
           </div>
+
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
             <a href="#home" className="hover:text-accent-c">{t.home}</a>
             <a href="#menu" className="hover:text-accent-c">{t.menu}</a>
             <a href="#about" className="hover:text-accent-c">{t.about}</a>
             <a href="#contact" className="hover:text-accent-c">{t.contact}</a>
           </nav>
-          <div className="flex items-center gap-2">
-            <button onClick={switchLocale} className="px-3 py-1.5 rounded-full border border-primary-c text-primary-c text-sm font-bold hover:bg-primary-c hover:text-white transition">
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button onClick={switchLocale} className="px-2.5 py-1.5 rounded-full border border-primary-c text-primary-c text-xs sm:text-sm font-bold hover:bg-primary-c hover:text-white transition">
               {t.language}
             </button>
             <button 
-  type="button"
-  onClick={() => loadMyOrders()} 
-  className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c transition cursor-pointer"
->
-  {t.myOrders}
-</button>
+              type="button"
+              onClick={() => loadMyOrders()} 
+              className="px-2 py-1.5 rounded-full text-xs sm:text-sm font-semibold hover:text-accent-c transition cursor-pointer"
+            >
+              {t.myOrders}
+            </button>
             {me ? (
-              <button onClick={logout} className="px-3 py-1.5 rounded-full text-sm text-muted-c hover:text-red-500">{t.logout}</button>
+              <button onClick={logout} className="px-2 py-1.5 rounded-full text-xs sm:text-sm text-muted-c hover:text-red-500">{t.logout}</button>
             ) : (
-              <a href="/login" className="px-3 py-1.5 rounded-full text-sm font-semibold hover:text-accent-c">{t.login}</a>
+              <a href="/login" className="px-2 py-1.5 rounded-full text-xs sm:text-sm font-semibold hover:text-accent-c">{t.login}</a>
             )}
-            <button onClick={() => setCartOpen(true)} className="relative btn-primary px-4 py-2 rounded-full text-sm font-bold">
-              🛒 {t.cart}
+            <button onClick={() => setCartOpen(true)} className="relative btn-primary px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center gap-1">
+              <span>🛒</span>
+              <span className="hidden xs:inline">{t.cart}</span>
               {cart.length > 0 && (
                 <span className="absolute -top-2 -end-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
                   {cart.reduce((s, l) => s + l.quantity, 0)}
