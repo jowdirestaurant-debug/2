@@ -51,21 +51,31 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} style={style}>
       <head>
         <link rel="icon" href={logoUrl} />
+        <style>{`
+          iframe#netlify-deploy-badge, 
+          .netlify-deploy-badge, 
+          a[href*="netlify.com/?utm_source=deploys"],
+          div[style*="z-index: 2147483647"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            height: 0 !important;
+            width: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+          }
+        `}</style>
       </head>
       <body className={`${cairo.variable} antialiased min-h-screen`}>
         {children}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.addEventListener('DOMContentLoaded', () => {
-                const removeBadge = () => {
-                  const badge = document.querySelector('iframe#netlify-deploy-badge, .netlify-deploy-badge, a[href*="netlify.com/?utm_source=deploys"]');
-                  if (badge) badge.remove();
-                };
-                removeBadge();
-                const observer = new MutationObserver(removeBadge);
-                observer.observe(document.body, { childList: true, subtree: true });
-              });
+              setInterval(() => {
+                const badges = document.querySelectorAll('iframe#netlify-deploy-badge, .netlify-deploy-badge, a[href*="netlify.com/?utm_source=deploys"]');
+                badges.forEach(b => b.remove());
+              }, 500);
             `,
           }}
         />
