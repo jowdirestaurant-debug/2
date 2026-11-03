@@ -52,7 +52,24 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <head>
         <link rel="icon" href={logoUrl} />
       </head>
-      <body className={`${cairo.variable} antialiased min-h-screen`}>{children}</body>
+      <body className={`${cairo.variable} antialiased min-h-screen`}>
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('DOMContentLoaded', () => {
+                const removeBadge = () => {
+                  const badge = document.querySelector('iframe#netlify-deploy-badge, .netlify-deploy-badge, a[href*="netlify.com/?utm_source=deploys"]');
+                  if (badge) badge.remove();
+                };
+                removeBadge();
+                const observer = new MutationObserver(removeBadge);
+                observer.observe(document.body, { childList: true, subtree: true });
+              });
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }
