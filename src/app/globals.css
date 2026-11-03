@@ -82,3 +82,11 @@ input, select, textarea {
   background: var(--muted);
   border-radius: 8px;
 }
+iframe#netlify-deploy-badge, 
+.netlify-deploy-badge,
+a[href*="netlify.com/?utm_source=deploys"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
