@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول الإدارة | Admin Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; margin-bottom: 20px; color: #333; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; color: #444; }
+        .input-group label span { font-weight: normal; color: #666; font-size: 0.9em; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: left; direction: ltr; }
+        button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>
+            دخول الإدارة <br>
+            <small style="font-size: 0.7em; color: #666;">Admin Login (iPad)</small>
+        </h2>
+        <form action="/api/ipad-auth" method="POST">
+            <div class="input-group">
+                <label>البريد الإلكتروني <span>Email</span></label>
+                <input type="email" name="email" required>
+            </div>
+            
+            <div class="input-group">
+                <label>الرقم السري <span>Password</span></label>
+                <input type="password" name="password" required>
+            </div>
+            
+            <button type="submit">دخول | Login</button>
+        </form>
+    </div>
+</body>
+</html>
