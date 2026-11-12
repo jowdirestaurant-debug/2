@@ -93,6 +93,13 @@ export const menuItems = pgTable("menu_items", {
   imageUrl: text("image_url"),
   isAvailable: boolean("is_available").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
+  
+  // الحقول الجديدة للإتاحة والأوقات المخصصة والتحديث التلقائي
+  availabilityType: varchar("availability_type", { length: 20 }).notNull().default("all"),
+  availableStartTime: varchar("available_start_time", { length: 10 }),
+  availableEndTime: varchar("available_end_time", { length: 10 }),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

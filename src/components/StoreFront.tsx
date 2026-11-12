@@ -385,11 +385,56 @@ export default function StoreFront(props: Props) {
     window.location.reload();
   };
 
+  const now = new Date();
+  const currentMins = now.getHours() * 60 + now.getMinutes();
+
+  const parseMins = (tStr: string) => {
+    if (!tStr) return 0;
+    const [h, m] = tStr.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  const isItemTimeValid = (item: any) => {
+    let availableStatus = item.isAvailable;
+    
+    // إذا كان غير متاح، نتحقق من تاريخ آخر تحديث؛ إذا كان في يوم سابق، يعود متاحاً تلقائياً اليوم
+    if (!availableStatus && item.updatedAt) {
+      const updateDate = new Date(item.updatedAt);
+      const today = new Date();
+      if (
+        updateDate.getDate() !== today.getDate() ||
+        updateDate.getMonth() !== today.getMonth() ||
+        updateDate.getFullYear() !== today.getFullYear()
+      ) {
+        availableStatus = true;
+      }
+    }
+
+    if (!availableStatus) return false;
+
+    // إذا كان نوع التوافر مخصصاً ولديه أوقات محددة
+    if (item.availabilityType === "custom" && item.availableStartTime && item.availableEndTime) {
+      const startMins = parseMins(item.availableStartTime);
+      const endMins = parseMins(item.availableEndTime);
+      
+      if (endMins < startMins) {
+        return currentMins >= startMins || currentMins <= endMins;
+      }
+      return currentMins >= startMins && currentMins <= endMins;
+    }
+
+    // افتراضياً: متوفر طوال فترات عمل المطعم العامة
+    return true;
+  };
+
   const visibleCats = categories.filter((c) => !c.parentId);
-  const filteredItems = activeCat === 0 ? items : items.filter((i) => {
-    const childIds = categories.filter((c) => c.parentId === activeCat).map((c) => c.id);
-    return i.categoryId === activeCat || childIds.includes(i.categoryId);
-  });
+  const filteredItems = activeCat === 0 
+    ? items.filter((i) => isItemTimeValid(i)) 
+    : items.filter((i) => {
+        if (!isItemTimeValid(i)) return false;
+        const childIds = categories.filter((c) => c.parentId === activeCat).map((c) => c.id);
+        return i.categoryId === activeCat || childIds.includes(i.categoryId);
+      });
 
   const heroImage = settings.hero_image || "/hero.jpg";
   const logo = settings.logo_url || "/logo.png";

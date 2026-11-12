@@ -54,7 +54,21 @@ export default function MenuManager({ locale, role = "superadmin" }: { locale: L
       setForm({ ...item });
       setEditItem(item);
     } else {
-      setForm({ categoryId: cats[0]?.id ?? "", nameAr: "", nameEn: "", descriptionAr: "", descriptionEn: "", basePrice: "", discountPercent: "0", imageUrl: "", isAvailable: true, sortOrder: 0 });
+      setForm({ 
+        categoryId: cats[0]?.id ?? "", 
+        nameAr: "", 
+        nameEn: "", 
+        descriptionAr: "", 
+        descriptionEn: "", 
+        basePrice: "", 
+        discountPercent: "0", 
+        imageUrl: "", 
+        isAvailable: true, 
+        sortOrder: 0,
+        availabilityType: "all",
+        availableStartTime: "",
+        availableEndTime: ""
+      });
       setEditItem({ __new: true });
     }
   };
@@ -164,6 +178,11 @@ export default function MenuManager({ locale, role = "superadmin" }: { locale: L
                     {" · "}{Number(item.basePrice).toFixed(3)}
                     {Number(item.discountPercent) > 0 && <span className="text-green-600"> · -{Number(item.discountPercent)}%</span>}
                     {" · "}{itemSizes.length} {lbl("أحجام", "sizes")}
+                    {item.availabilityType === "custom" && item.availableStartTime && item.availableEndTime && (
+                      <span className="text-amber-600 block mt-0.5">
+                        🕒 {lbl("مخصص:", "Custom:")} {item.availableStartTime} - {item.availableEndTime}
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <button onClick={() => toggleAvailability(item)} className={`text-xs font-bold px-3 py-1 rounded-full ${item.isAvailable ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
@@ -207,6 +226,53 @@ export default function MenuManager({ locale, role = "superadmin" }: { locale: L
                 <div><label className="text-xs font-bold text-muted-c block mb-1">{lbl("خصم %", "Discount %")}</label><input type="number" step="any" value={form.discountPercent ?? ""} onChange={(e) => setForm((p: Row) => ({ ...p, discountPercent: e.target.value }))} className={input} dir="ltr" /></div>
                 <div><label className="text-xs font-bold text-muted-c block mb-1">{lbl("الترتيب", "Sort")}</label><input type="number" value={form.sortOrder ?? 0} onChange={(e) => setForm((p: Row) => ({ ...p, sortOrder: e.target.value }))} className={input} dir="ltr" /></div>
               </div>
+
+              {/* قسم أوقات توافر الطبق الجديدة */}
+              <div className="border border-black/10 rounded-xl p-3 bg-black/5 space-y-3">
+                <label className="text-xs font-bold text-primary-c block">{lbl("أوقات توفر الطبق", "Dish Availability Schedule")}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm((p: Row) => ({ ...p, availabilityType: "all", availableStartTime: "", availableEndTime: "" }))}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition ${form.availabilityType !== "custom" ? "btn-primary border-transparent" : "bg-white border-black/15 text-muted-c"}`}
+                  >
+                    {lbl("طوال فترات العمل الرسمية", "All working hours")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p: Row) => ({ ...p, availabilityType: "custom" }))}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition ${form.availabilityType === "custom" ? "btn-primary border-transparent" : "bg-white border-black/15 text-muted-c"}`}
+                  >
+                    {lbl("أوقات مخصصة", "Custom times")}
+                  </button>
+                </div>
+
+                {form.availabilityType === "custom" && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-muted-c block mb-1">{lbl("وقت البداية", "Start Time")}</label>
+                      <input 
+                        type="time" 
+                        value={form.availableStartTime ?? ""} 
+                        onChange={(e) => setForm((p: Row) => ({ ...p, availableStartTime: e.target.value }))} 
+                        className={input} 
+                        dir="ltr" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-muted-c block mb-1">{lbl("وقت النهاية", "End Time")}</label>
+                      <input 
+                        type="time" 
+                        value={form.availableEndTime ?? ""} 
+                        onChange={(e) => setForm((p: Row) => ({ ...p, availableEndTime: e.target.value }))} 
+                        className={input} 
+                        dir="ltr" 
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-muted-c block mb-1">{lbl("صورة الطبق", "Dish image")}</label>
                 <div className="flex items-center gap-3">
@@ -260,7 +326,6 @@ export default function MenuManager({ locale, role = "superadmin" }: { locale: L
                   </div>
                   <div className="flex gap-2">
                     <button onClick={async () => {
-                      // للموظف: السماح بتغيير التوفر فقط للحجم بسرعة دون تعديل الاسم أو السعر
                       if (isStaff) {
                         await fetch("/api/admin/sizes", {
                           method: "PATCH",
@@ -282,7 +347,6 @@ export default function MenuManager({ locale, role = "superadmin" }: { locale: L
               ))}
             </div>
 
-            {/* تعديل الأحجام المتقدم متاح للمديرين فقط */}
             {!isStaff && sizeForm ? (
               <div className="mt-4 border-t border-black/10 pt-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">

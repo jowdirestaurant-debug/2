@@ -176,6 +176,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           imageUrl: body.imageUrl || null,
           isAvailable: body.isAvailable !== false,
           sortOrder: Number(body.sortOrder) || 0,
+          availabilityType: body.availabilityType || "all",
+          availableStartTime: body.availableStartTime || null,
+          availableEndTime: body.availableEndTime || null,
+          updatedAt: new Date(),
         }).returning();
         return NextResponse.json({ data: row });
       }
@@ -311,6 +315,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         if (body.imageUrl !== undefined) set.imageUrl = body.imageUrl || null;
         if (body.isAvailable !== undefined) set.isAvailable = !!body.isAvailable;
         if (body.sortOrder !== undefined) set.sortOrder = Number(body.sortOrder) || 0;
+        if (body.availabilityType !== undefined) set.availabilityType = body.availabilityType;
+        if (body.availableStartTime !== undefined) set.availableStartTime = body.availableStartTime || null;
+        if (body.availableEndTime !== undefined) set.availableEndTime = body.availableEndTime || null;
+        
+        // تحديث وقت التعديل لضمان إعادة الإتاحة التلقائية في اليوم التالي إذا أُغلق الطبق
+        set.updatedAt = new Date();
+
         const [row] = await db.update(menuItems).set(set).where(eq(menuItems.id, id)).returning();
         return NextResponse.json({ data: row });
       }
